@@ -5,6 +5,40 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    restart: unless-stopped
+    networks:
+      - app-network
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env
+    networks:
+      - app-network
 
+  mysql:
+    image: mysql:latest
+    env_file:
+      - ./backend/.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8082:8080
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
