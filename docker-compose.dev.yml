@@ -1,0 +1,22 @@
+services:
+  frontend:
+    container_name: mygamelist-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - frontend_node_modules_cache:/root/.npm
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_HOST=localhost
+      - VITE_PORT=5173
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  frontend_node_modules_cache:
