@@ -1,29 +1,13 @@
-# ==========================================
-# Dockerfile.dev - Environnement de développement ViteJS
-# ==========================================
+FROM node:lts-alpine
 
-# Utilise l'image officielle Node.js (version LTS Alpine pour légèreté)
-FROM node:20-alpine
-
-# Définit le répertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copie uniquement les fichiers de dépendances pour optimiser le cache Docker
-# Si package.json/package-lock.json ne changent pas, cette couche est mise en cache
 COPY package.json package-lock.json* ./
 
-# Installation des dépendances
-# --frozen-lockfile garantit l'utilisation exacte du lock file
-# Utilise npm ci pour une installation propre et reproductible
 RUN npm ci
 
-# Copie tout le code source dans le conteneur
-# Cette étape est après npm ci pour bénéficier du cache si seul le code change
 COPY . .
 
-# Expose le port par défaut de Vite (5173)
 EXPOSE 5173
 
-# Commande de démarrage avec hot reload
-# --host 0.0.0.0 permet l'accès depuis l'extérieur du conteneur
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

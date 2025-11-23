@@ -18,12 +18,6 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-### Démarrer uniquement le frontend
-
-```powershell
-docker compose -f docker-compose.dev.yml up frontend --build
-```
-
 ### Arrêter tous les conteneurs
 
 ```powershell
@@ -42,12 +36,6 @@ docker compose -f docker-compose.dev.yml down -v
 docker compose -f docker-compose.dev.yml logs -f
 ```
 
-### Voir les logs du frontend uniquement
-
-```powershell
-docker compose -f docker-compose.dev.yml logs -f frontend
-```
-
 ### Reconstruire sans cache (clean build)
 
 ```powershell
@@ -60,55 +48,10 @@ docker compose -f docker-compose.dev.yml build --no-cache
 docker compose -f docker-compose.dev.yml restart
 ```
 
-### Exécuter une commande dans le conteneur frontend
-
-```powershell
-docker compose -f docker-compose.dev.yml exec frontend sh
-```
-
 ### Voir l'état des conteneurs
 
 ```powershell
 docker compose -f docker-compose.dev.yml ps
-```
-
-## 🔧 NPM - Frontend (développement local sans Docker)
-
-**Note** : Ces commandes doivent être exécutées depuis le dossier `frontend/`.
-
-### Installer les dépendances
-
-```powershell
-cd frontend
-npm install
-```
-
-### Démarrer le serveur de développement
-
-```powershell
-cd frontend
-npm run dev
-```
-
-### Build de production
-
-```powershell
-cd frontend
-npm run build
-```
-
-### Linter le code
-
-```powershell
-cd frontend
-npm run lint
-```
-
-### Prévisualiser le build de production
-
-```powershell
-cd frontend
-npm run preview
 ```
 
 ## 🧹 NETTOYAGE
@@ -156,6 +99,6 @@ docker system prune -a --volumes
 
 ### Backend (à venir)
 
-- **Port** : 3000 (à confirmer)
+- **Port** : 3000
 - **URL locale** : <http://localhost:3000>
 - **Container** : mygamelist-backend-dev

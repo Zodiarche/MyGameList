@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --clear-screen=false src/server.ts",
     "clean": "rimraf dist"
   },
   "dependencies": {

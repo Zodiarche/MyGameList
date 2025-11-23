@@ -1,4 +1,23 @@
 services:
+  backend:
+    container_name: mygamelist-backend-dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - backend_node_modules_cache:/root/.npm
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - CHOKIDAR_USEPOLLING=true
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
   frontend:
     container_name: mygamelist-frontend-dev
     build:
@@ -14,9 +33,13 @@ services:
       - NODE_ENV=development
       - VITE_HMR_HOST=localhost
       - VITE_PORT=5173
+      - VITE_API_URL=http://localhost:3001
     restart: unless-stopped
     stdin_open: true
     tty: true
+    depends_on:
+      - backend
 
 volumes:
+  backend_node_modules_cache:
   frontend_node_modules_cache:
