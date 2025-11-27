@@ -8,7 +8,7 @@ participant "Model" as Model
 database "Base de donnees" as BDD
 
 Visiteur -> Front: Cliquer sur un jeu
-Front -> Route: GET /games/:game_id
+Front -> Route: GET /games/:slug
 Route -> Controller: gameController.getGameDetail(req, res)
 
 note right of Controller
@@ -17,11 +17,11 @@ note right of Controller
   au lieu de 6-8 requêtes séquentielles
 end note
 
-Controller -> Model: gameModel.getCompleteGameDetails(game_id)
-Model -> BDD: SELECT * FROM view_game_complete_details\nWHERE game_id = ?
+Controller -> Model: gameModel.getCompleteGameDetailsBySlug(slug)
+Model -> BDD: SELECT * FROM view_game_complete_details\nWHERE slug = ?
 note right of BDD
   Cette vue regroupe via des JOINs:
-  - Infos du jeu (title, cover, etc.)
+  - Infos du jeu (title, slug, cover, etc.)
   - Plateformes (JSON array)
   - Genres (JSON array)
   - Tags (JSON array)

@@ -42,12 +42,14 @@ CREATE TABLE user_account (
 CREATE TABLE game (
     game_id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE COMMENT 'URL SEO-friendly',
     release_date DATE DEFAULT NULL,
     metacritic INT DEFAULT NULL COMMENT 'Score Metacritic (0-100)',
     website VARCHAR(255) DEFAULT NULL COMMENT 'Site web officiel du jeu',
     cover_image VARCHAR(255) DEFAULT NULL COMMENT 'URL de l''image de couverture',
 
     INDEX idx_title (title),
+    INDEX idx_slug (slug),
     INDEX idx_release_date (release_date),
     INDEX idx_metacritic (metacritic),
 

@@ -39,6 +39,7 @@ USER_ACCOUNT (
 GAME (
     game_id INT [PK],
     title VARCHAR(255) [NOT NULL],
+    slug VARCHAR(255) [UNIQUE, NOT NULL],
     release_date DATE,
     metacritic INT [CHECK (metacritic >= 0 AND metacritic <= 100)],
     website VARCHAR(255),
@@ -50,6 +51,7 @@ GAME (
 
 - PRIMARY KEY (game_id)
 - INDEX idx_title (title)
+- UNIQUE INDEX idx_slug (slug)
 - INDEX idx_release_date (release_date)
 
 ---

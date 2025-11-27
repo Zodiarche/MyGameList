@@ -23,6 +23,7 @@
 
 - **game_id** (PK)
 - title
+- slug
 - release_date
 - metacritic
 - website
