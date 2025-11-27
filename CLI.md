@@ -89,15 +89,89 @@ docker volume prune
 docker system prune -a --volumes
 ```
 
+## 🗄️ BASE DE DONNÉES & CACHE
+
+### PostgreSQL
+
+```powershell
+# Se connecter à PostgreSQL
+docker exec -it mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev
+
+# Voir les tables
+docker exec -it mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev -c "\dt"
+
+# Exécuter un fichier SQL
+docker exec -i mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev < database/schema.sql
+
+# Backup de la base
+docker exec -t mygamelist-postgres-dev pg_dump -U dev_user mygamelist_dev > backup.sql
+
+# Restore d'un backup
+docker exec -i mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev < backup.sql
+```
+
+### Redis Cache
+
+```powershell
+# Se connecter à Redis CLI
+docker exec -it mygamelist-redis-dev redis-cli
+
+# Voir les statistiques du cache
+docker exec -it mygamelist-redis-dev redis-cli INFO stats
+
+# Voir l'utilisation mémoire
+docker exec -it mygamelist-redis-dev redis-cli INFO memory
+
+# Vider tout le cache (DEV uniquement)
+docker exec -it mygamelist-redis-dev redis-cli FLUSHALL
+
+# Voir toutes les clés (DEV uniquement)
+docker exec -it mygamelist-redis-dev redis-cli KEYS "*"
+
+# Voir une clé spécifique
+docker exec -it mygamelist-redis-dev redis-cli GET "ranking:rating:page:1"
+
+# Monitoring en temps réel
+docker exec -it mygamelist-redis-dev redis-cli --stat
+```
+
+**Pour plus de commandes Redis** : voir [REDIS-CLI.md](./REDIS-CLI.md)
+
+### Rafraîchir les vues matérialisées
+
+```powershell
+# Depuis PostgreSQL CLI
+docker exec -it mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev -c "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_game_rankings;"
+```
+
 ## 📝 NOTES
 
-### Frontend
+### Services
 
-- **Port** : 5173
-- **URL locale** : <http://localhost:5173>
-- **Container** : mygamelist-frontend-dev
+| Service | Port | URL | Container |
+|---------|------|-----|-----------|
+| **Frontend** | 5173 | http://localhost:5173 | mygamelist-frontend-dev |
+| **Backend** | 3001 | http://localhost:3001 | mygamelist-backend-dev |
+| **PostgreSQL** | 5432 | localhost:5432 | mygamelist-postgres-dev |
+| **Redis** | 6379 | localhost:6379 | mygamelist-redis-dev |
 
-### Backend (à venir)
+### Credentials (DEV)
+
+- **PostgreSQL**
+  - User: `dev_user`
+  - Password: `dev_password`
+  - Database: `mygamelist_dev`
+
+- **Redis**
+  - Pas d'authentification en DEV
+
+⚠️ **NE JAMAIS commit ces credentials** - À changer en production
+
+## 📚 Documentation
+
+- [Architecture Cache](./ARCHITECTURE-CACHE.md) - Stratégie de cache multi-niveaux
+- [Redis CLI](./REDIS-CLI.md) - Commandes Redis détaillées
+- [CDC](./CDC.md) - Cahier des charges complet
 
 - **Port** : 3000
 - **URL locale** : <http://localhost:3000>

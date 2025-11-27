@@ -1,4 +1,47 @@
 services:
+  # Base de données PostgreSQL
+  postgres:
+    container_name: mygamelist-postgres-dev
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=mygamelist_dev
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d mygamelist_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache Redis
+  redis:
+    container_name: mygamelist-redis-dev
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --maxmemory 4gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   backend:
     container_name: mygamelist-backend-dev
     build:
@@ -14,9 +57,26 @@ services:
       - NODE_ENV=development
       - PORT=3001
       - CHOKIDAR_USEPOLLING=true
+      # Database
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mygamelist_dev
+      - DB_USER=dev_user
+      - DB_PASSWORD=dev_password
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Session
+      - SESSION_SECRET=dev_secret_change_in_production
+      - SESSION_MAX_AGE=86400000
     restart: unless-stopped
     stdin_open: true
     tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     container_name: mygamelist-frontend-dev
@@ -43,3 +103,5 @@ services:
 volumes:
   backend_node_modules_cache:
   frontend_node_modules_cache:
+  postgres_data:
+  redis_data:
