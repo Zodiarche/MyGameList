@@ -1,0 +1,38 @@
+@startuml Feature_ConsulterPageAccueil_Sequence
+title Feature: Consulter la page d'accueil (séquence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+Visiteur -> Front: Ouvrir URL racine
+Front -> Route: GET /home
+Route -> Controller: homeController.getHomePage()
+Controller -> Model: gameModel.getPopularGames(limit: 10)
+Model -> BDD: SELECT * FROM game\nORDER BY metacritic DESC\nLIMIT 10
+BDD --> Model: 10 jeux populaires
+Model --> Controller: Données jeux populaires
+
+Controller -> Model: gameModel.getNewReleases(limit: 10)
+Model -> BDD: SELECT * FROM game\nORDER BY release_date DESC\nLIMIT 10
+BDD --> Model: 10 nouveautés
+Model --> Controller: Données nouveautés
+
+Controller -> Model: ratingModel.getTopRatedGames(limit: 10)
+Model -> BDD: SELECT g.game_id, g.title, g.cover_image,\nAVG(r.rating) as avg_rating\nFROM rating r\nJOIN game g ON r.game_id = g.game_id\nGROUP BY g.game_id\nORDER BY avg_rating DESC\nLIMIT 10
+BDD --> Model: 10 jeux top rated
+Model --> Controller: Données classement
+
+Controller --> Route: 200 + Données page d'accueil
+Route --> Front: Contenu page d'accueil
+Front --> Visiteur: Afficher page d'accueil
+
+alt Erreur serveur
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message d'erreur
+Route --> Front: 500 + message d'erreur
+Front --> Visiteur: Afficher page d'erreur
+end
+@enduml

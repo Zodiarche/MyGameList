@@ -1,0 +1,128 @@
+@startuml Feature_GererBibliotheque_Sequence
+title Feature: Gérer sa bibliothèque (séquence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+== Consulter sa bibliothèque ==
+Membre -> Front: Accéder à "Ma bibliothèque"
+Front -> Route: GET /library?page=1&limit=20&status=playing
+Route -> Controller: libraryController.getLibrary(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider paramètres\n(page, limit, status filter)
+Controller -> Model: libraryModel.countUserGames(user_id, status)
+Model -> BDD: SELECT COUNT(*) as total\nFROM library\nWHERE user_id = ?\nAND (status = ? OR ? IS NULL)
+BDD --> Model: Nombre total de jeux
+Model --> Controller: totalResults
+
+Controller -> Model: libraryModel.getUserLibrary(user_id, status, limit, offset)
+Model -> BDD: SELECT l.library_id, l.status, l.added_at,\nl.updated_at, l.play_time,\ng.game_id, g.title, g.cover_image,\np.name as platform_name\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nLEFT JOIN platform p ON l.owned_platform_id = p.platform_id\nWHERE l.user_id = ?\nAND (l.status = ? OR ? IS NULL)\nORDER BY l.updated_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste paginée de jeux avec infos
+Model --> Controller: Bibliothèque de l'utilisateur
+
+Controller -> Controller: Calculer métadonnées pagination
+Controller --> Route: 200 + data + pagination
+Route --> Front: 200 + bibliothèque + pagination
+Front --> Membre: Afficher sa bibliothèque
+
+== Ajouter un jeu à sa bibliothèque ==
+Membre -> Front: Cliquer sur "Ajouter à ma bibliothèque"\nsur la fiche d'un jeu
+Front --> Membre: Afficher formulaire\n(statut, plateforme possédée)
+Membre -> Front: Soumettre formulaire\n(game_id, status, owned_platform_id)
+Front -> Route: POST /library + données
+Route -> Controller: libraryController.addGame(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider données\n(status valid, platform_id valid)
+
+Controller -> Model: gameModel.checkGameExists(game_id)
+Model -> BDD: SELECT game_id\nFROM game\nWHERE game_id = ?
+BDD --> Model: Résultat recherche
+Model --> Controller: Jeu existe ou null
+
+alt Jeu inexistant
+Controller --> Route: 404 + "Jeu introuvable"
+Route --> Front: 404 + message
+Front --> Membre: Afficher erreur
+else Jeu existe
+Model -> BDD: SELECT library_id\nFROM library\nWHERE user_id = ? AND game_id = ?
+BDD --> Model: Résultat recherche
+Model --> Controller: Jeu existant ou null
+
+alt Jeu déjà dans la bibliothèque
+Controller --> Route: 409 + "Jeu déjà dans votre bibliothèque"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Jeu non présent
+Controller -> Model: libraryModel.addGame(user_id, game_id, status, owned_platform_id)
+Model -> BDD: INSERT INTO library\n(user_id, game_id, status,\nowned_platform_id, added_at)\nVALUES (?, ?, ?, ?, NOW())
+BDD --> Model: library_id généré
+Model --> Controller: Jeu ajouté avec succès
+Controller --> Route: 201 + données du jeu ajouté
+Route --> Front: 201 + confirmation
+Front --> Membre: Afficher message de succès\n+ mise à jour de l'affichage
+end
+end
+
+== Modifier le statut d'un jeu ==
+Membre -> Front: Modifier statut d'un jeu\n(to_play → playing → completed)
+Front -> Route: PATCH /library/:library_id + nouvelles données
+Route -> Controller: libraryController.updateGame(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider données\n(status, play_time, owned_platform_id)
+
+Controller -> Model: libraryModel.checkOwnership(library_id, user_id)
+Model -> BDD: SELECT user_id\nFROM library\nWHERE library_id = ?
+BDD --> Model: user_id du propriétaire
+Model --> Controller: user_id
+
+alt Utilisateur non propriétaire
+Controller --> Route: 403 + "Non autorisé"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Utilisateur propriétaire
+Controller -> Model: libraryModel.updateGame(library_id, updateData)
+Model -> BDD: UPDATE library\nSET status = ?, play_time = ?,\nowned_platform_id = ?, updated_at = NOW()\nWHERE library_id = ?
+BDD --> Model: Mise à jour effectuée
+Model --> Controller: Jeu mis à jour
+Controller --> Route: 200 + données mises à jour
+Route --> Front: 200 + confirmation
+Front --> Membre: Afficher mise à jour\n+ message de succès
+end
+
+== Retirer un jeu de sa bibliothèque ==
+Membre -> Front: Cliquer sur "Retirer de ma bibliothèque"
+Front --> Membre: Demander confirmation
+Membre -> Front: Confirmer suppression
+Front -> Route: DELETE /library/:library_id
+Route -> Controller: libraryController.removeGame(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id du token
+
+Controller -> Model: libraryModel.checkOwnership(library_id, user_id)
+Model -> BDD: SELECT user_id\nFROM library\nWHERE library_id = ?
+BDD --> Model: user_id du propriétaire
+Model --> Controller: user_id
+
+alt Utilisateur non propriétaire
+Controller --> Route: 403 + "Non autorisé"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Utilisateur propriétaire
+Controller -> Model: libraryModel.deleteGame(library_id)
+Model -> BDD: DELETE FROM library\nWHERE library_id = ?
+BDD --> Model: Suppression effectuée
+Model --> Controller: Jeu retiré avec succès
+Controller --> Route: 204 No Content
+Route --> Front: 204
+Front --> Membre: Retirer le jeu de l'affichage\n+ message de confirmation
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

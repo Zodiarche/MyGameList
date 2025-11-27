@@ -1,0 +1,47 @@
+@startuml Feature_Inscription_Sequence
+title Feature: S'inscrire (séquence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+Visiteur -> Front: Ouvrir formulaire d'inscription
+Front --> Visiteur: Afficher formulaire
+Visiteur -> Front: Soumettre formulaire\n(email, pseudo, mot de passe)
+Front -> Route: POST /register + données
+Route -> Controller: authController.register(req, res)
+Controller -> Controller: Valider données\n(format email, longueur mot de passe, etc.)
+
+alt Données invalides
+Controller --> Route: 400 + erreurs de validation
+Route --> Front: 400 + erreurs de validation
+Front --> Visiteur: Afficher messages d'erreur
+else Données valides
+Controller -> Model: userModel.findByEmail(email)
+Model -> BDD: SELECT * FROM user\nWHERE email = ?
+BDD --> Model: Résultat recherche email
+Model --> Controller: Utilisateur existant ou null
+
+Controller -> Model: userModel.findByUsername(username)
+Model -> BDD: SELECT * FROM user\nWHERE username = ?
+BDD --> Model: Résultat recherche username
+Model --> Controller: Utilisateur existant ou null
+
+alt Email/pseudo déjà pris
+Controller --> Route: 409 + message "email/pseudo existant"
+Route --> Front: 409 + message "email/pseudo existant"
+Front --> Visiteur: Afficher message d'erreur
+else Disponible
+Controller -> Controller: Hasher le mot de passe (bcrypt)
+Controller -> Model: userModel.create(userData)
+Model -> BDD: INSERT INTO user\n(username, email, password, registration_date)\nVALUES (?, ?, ?, NOW())
+BDD --> Model: user_id généré
+Model --> Controller: Utilisateur créé
+Controller --> Route: 201 + confirmation
+Route --> Front: 201 + confirmation
+Front --> Visiteur: Afficher message de succès\n+ proposer connexion
+end
+end
+@enduml

@@ -1,0 +1,97 @@
+@startuml Feature_GererProfil_Sequence
+title Feature: Gerer son profil (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+== Consulter son profil ==
+Membre -> Front: Acceder a "Mon profil"
+Front -> Route: GET /profile
+Route -> Controller: userController.getProfile(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Model: userModel.getUserById(user_id)
+Model -> BDD: SELECT user_id, username, email,\navatar, bio, registration_date\nFROM user\nWHERE user_id = ?
+BDD --> Model: Informations utilisateur
+Model --> Controller: Donnees profil
+Controller --> Route: 200 + profil
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher profil
+
+== Modifier son profil ==
+Membre -> Front: Cliquer sur "Modifier profil"
+Front --> Membre: Afficher formulaire\n(username, email, bio, avatar)
+Membre -> Front: Modifier et soumettre
+Front -> Route: PATCH /profile + donnees
+Route -> Controller: userController.updateProfile(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider donnees\n(username, email, bio, avatar URL)
+
+Controller -> Model: userModel.checkUsernameExists(username, exclude_user_id)
+Model -> BDD: SELECT user_id FROM user\nWHERE username = ?\nAND user_id != ?
+BDD --> Model: Resultat recherche
+Model --> Controller: Username existant ou null
+
+alt Username deja pris
+Controller --> Route: 409 + "Pseudo deja utilise"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Username disponible
+Controller -> Model: userModel.checkEmailExists(email, exclude_user_id)
+Model -> BDD: SELECT user_id FROM user\nWHERE email = ?\nAND user_id != ?
+BDD --> Model: Resultat recherche
+Model --> Controller: Email existant ou null
+
+alt Email deja pris
+Controller --> Route: 409 + "Email deja utilise"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Email disponible
+Controller -> Model: userModel.updateProfile(user_id, profileData)
+Model -> BDD: UPDATE user\nSET username = ?, email = ?,\nbio = ?, avatar = ?\nWHERE user_id = ?
+BDD --> Model: Mise a jour effectuee
+Model --> Controller: Profil mis a jour
+Controller --> Route: 200 + profil mis a jour
+Route --> Front: 200 + nouvelles donnees
+Front --> Membre: Afficher confirmation\n+ mise a jour affichage
+end
+end
+
+== Changer mot de passe ==
+Membre -> Front: Cliquer sur "Changer mot de passe"
+Front --> Membre: Afficher formulaire\n(ancien, nouveau, confirmation)
+Membre -> Front: Soumettre mots de passe
+Front -> Route: PATCH /profile/password + donnees
+Route -> Controller: userController.changePassword(req, res)
+Controller -> Controller: Verifier authentification JWT
+Controller -> Model: userModel.getUserById(user_id)
+Model -> BDD: SELECT password FROM user\nWHERE user_id = ?
+BDD --> Model: Mot de passe hash actuel
+Model --> Controller: Password hash
+
+Controller -> Controller: Verifier ancien mot de passe\nbcrypt.compare()
+
+alt Ancien mot de passe incorrect
+Controller --> Route: 401 + "Mot de passe incorrect"
+Route --> Front: 401 + message
+Front --> Membre: Afficher erreur
+else Ancien mot de passe correct
+Controller -> Controller: Hasher nouveau mot de passe\nbcrypt.hash()
+Controller -> Model: userModel.updatePassword(user_id, new_password_hash)
+Model -> BDD: UPDATE user\nSET password = ?\nWHERE user_id = ?
+BDD --> Model: Mise a jour effectuee
+Model --> Controller: Mot de passe change
+Controller --> Route: 200 + confirmation
+Route --> Front: 200 + message
+Front --> Membre: Afficher succes
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

@@ -1,0 +1,50 @@
+@startuml Feature_ConnexionDeconnexion_Sequence
+title Feature: Se connecter / Se déconnecter (séquence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+Membre -> Front: Ouvrir page de connexion
+Front --> Membre: Afficher formulaire de connexion
+Membre -> Front: Soumettre identifiants
+Front -> Route: POST /login + identifiants
+Route -> Controller: authController.login(req, res)
+Controller -> Model: userModel.findByEmail(email)
+Model -> BDD: SELECT user_id, username, email,\npassword, role, is_active\nFROM user WHERE email = ?
+BDD --> Model: Utilisateur + mot de passe hashé
+Model --> Controller: Données utilisateur
+
+alt Utilisateur non trouvé
+Controller --> Route: 401 + message "identifiants invalides"
+Route --> Front: 401 + message "identifiants invalides"
+Front --> Membre: Afficher erreur
+else Compte désactivé
+Controller -> Controller: Vérifier is_active
+Controller --> Route: 403 + message "compte désactivé"
+Route --> Front: 403 + message "compte désactivé"
+Front --> Membre: Afficher message de blocage
+else Mot de passe incorrect
+Controller -> Controller: Comparer mot de passe\navec bcrypt.compare()
+Controller --> Route: 401 + message "identifiants invalides"
+Route --> Front: 401 + message "identifiants invalides"
+Front --> Membre: Afficher erreur
+else Identifiants valides et compte actif
+Controller -> Controller: Vérifier mot de passe\navec bcrypt.compare()
+Controller -> Controller: Générer token JWT\n(user_id, role, exp)
+Controller --> Route: 200 + token JWT + user data
+Route --> Front: 200 + token JWT + user data
+Front --> Membre: Rediriger vers espace personnel
+end
+
+== Déconnexion ==
+Membre -> Front: Cliquer sur "Se déconnecter"
+Front -> Route: POST /logout + token JWT
+Route -> Controller: authController.logout(req, res)
+Controller -> Controller: Supprimer token côté client
+Controller --> Route: 204
+Route --> Front: 204
+Front --> Membre: Rediriger vers page d'accueil
+@enduml

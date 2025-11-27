@@ -1,0 +1,113 @@
+@startuml Feature_SignalerContenu_Sequence
+title Feature: Signaler un contenu (sequence)
+
+note over Controller, Model
+  **Validation de l'existence du contenu**
+  La table report utilise content_id générique (comment OU user).
+  Solution retenue : Validation dans l'application (backend)
+  avant insertion, plutôt que triggers SQL ou scinder la table.
+  
+  Logique : 
+  - Si content_type = 'comment' → vérifier dans table comment
+  - Si content_type = 'user' → vérifier dans table user
+  Retourne 404 si le contenu n'existe pas.
+end note
+
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+== Signaler un commentaire ==
+Membre -> Front: Cliquer sur "Signaler"\nsur un commentaire
+Front --> Membre: Afficher formulaire signalement\n(raison, description)
+Membre -> Front: Choisir raison et soumettre
+Front -> Route: POST /reports + data\n(content_type: comment, content_id, reason, description)
+Route -> Controller: reportController.createReport(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire reporter_user_id du token
+Controller -> Controller: Valider donnees\n(content_type, content_id, reason)
+
+Controller -> Model: reportModel.checkDuplicate(reporter_id, content_type, content_id)
+Model -> BDD: SELECT report_id\nFROM report\nWHERE reporter_user_id = ?\nAND content_type = ?\nAND content_id = ?
+BDD --> Model: Signalement existant ou null
+Model --> Controller: Deja signale ou non
+
+alt Deja signale par cet utilisateur
+Controller --> Route: 409 + "Vous avez deja signale ce contenu"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Nouveau signalement
+Controller -> Model: commentModel.getCommentById(content_id)
+Model -> BDD: SELECT comment_id FROM comment\nWHERE comment_id = ?
+BDD --> Model: Commentaire existe ou null
+Model --> Controller: Validation existence
+
+alt Contenu n'existe pas
+Controller --> Route: 404 + "Contenu non trouve"
+Route --> Front: 404 + message
+Front --> Membre: Afficher erreur
+else Contenu existe
+Controller -> Model: reportModel.createReport(reportData)
+Model -> BDD: INSERT INTO report\n(reporter_user_id, content_type,\ncontent_id, reason, description,\nreported_at, status)\nVALUES (?, ?, ?, ?, ?, NOW(), 'pending')
+BDD --> Model: report_id genere
+Model --> Controller: Signalement cree
+Controller --> Route: 201 + "Signalement enregistre"
+Route --> Front: 201 + confirmation
+Front --> Membre: Afficher "Merci pour votre signalement"\n+ masquer contenu (optionnel)
+end
+end
+
+== Signaler un utilisateur ==
+Membre -> Front: Cliquer sur "Signaler l'utilisateur"\nsur profil
+Front --> Membre: Afficher formulaire signalement
+Membre -> Front: Choisir raison et soumettre
+Front -> Route: POST /reports + data\n(content_type: user, content_id: user_id, reason, description)
+Route -> Controller: reportController.createReport(req, res)
+Controller -> Controller: Verifier authentification JWT
+Controller -> Controller: Valider donnees
+
+alt Tentative de se signaler soi-meme
+Controller --> Route: 400 + "Impossible de se signaler soi-meme"
+Route --> Front: 400 + message
+Front --> Membre: Afficher erreur
+else Utilisateur different
+Controller -> Model: reportModel.checkDuplicate(reporter_id, 'user', target_user_id)
+Model -> BDD: SELECT report_id FROM report\nWHERE reporter_user_id = ?\nAND content_type = 'user'\nAND content_id = ?
+BDD --> Model: Signalement existant ou null
+Model --> Controller: Deja signale ou non
+
+alt Deja signale
+Controller --> Route: 409 + "Vous avez deja signale cet utilisateur"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Nouveau signalement
+Controller -> Model: userModel.getUserById(target_user_id)
+Model -> BDD: SELECT user_id FROM user\nWHERE user_id = ?
+BDD --> Model: Utilisateur existe
+Model --> Controller: Validation
+
+alt Utilisateur n'existe pas
+Controller --> Route: 404 + "Utilisateur non trouve"
+Route --> Front: 404 + message
+Front --> Membre: Afficher erreur
+else Utilisateur existe
+Controller -> Model: reportModel.createReport(reportData)
+Model -> BDD: INSERT INTO report\n(reporter_user_id, content_type,\ncontent_id, reason, description,\nreported_at, status)\nVALUES (?, 'user', ?, ?, ?, NOW(), 'pending')
+BDD --> Model: report_id genere
+Model --> Controller: Signalement cree
+Controller --> Route: 201 + "Signalement enregistre"
+Route --> Front: 201 + confirmation
+Front --> Membre: Afficher "Merci pour votre signalement"
+end
+end
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

@@ -1,0 +1,136 @@
+@startuml Feature_ModererContenu_Sequence
+title Feature: Modérer les contenus (séquence)
+actor Administrateur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+== Consulter les signalements en attente ==
+Administrateur -> Front: Accéder à "Panel de modération"
+Front -> Route: GET /admin/reports?status=pending&page=1&limit=20
+Route -> Controller: adminController.getReports(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id et role du token
+Controller -> Controller: Vérifier role = 'administrator'
+
+alt Utilisateur non administrateur
+Controller --> Route: 403 + "Accès refusé"
+Route --> Front: 403 + message
+Front --> Administrateur: Rediriger vers page d'accueil
+else Administrateur autorisé
+Controller -> Controller: Valider paramètres\n(status, page, limit)
+Controller -> Model: reportModel.countReports(status)
+Model -> BDD: SELECT COUNT(*) as total\nFROM report\nWHERE status = ?
+BDD --> Model: Nombre total de signalements
+Model --> Controller: totalResults
+
+Controller -> Model: reportModel.getReports(status, limit, offset)
+Model -> BDD: SELECT r.report_id, r.content_type,\nr.content_id, r.reason, r.description,\nr.reported_at, r.status,\nu_reporter.username as reporter_username,\nu_reporter.user_id as reporter_id\nFROM report r\nJOIN user u_reporter ON r.reporter_user_id = u_reporter.user_id\nWHERE r.status = ?\nORDER BY r.reported_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste paginée de signalements
+Model --> Controller: Signalements avec infos
+
+Controller -> Controller: Calculer métadonnées pagination
+Controller --> Route: 200 + data + pagination
+Route --> Front: 200 + signalements + pagination
+Front --> Administrateur: Afficher liste des signalements
+end
+
+== Consulter le détail d'un signalement ==
+Administrateur -> Front: Cliquer sur un signalement
+Front -> Route: GET /admin/reports/:report_id
+Route -> Controller: adminController.getReportDetail(req, res)
+Controller -> Controller: Vérifier authentification JWT\net role administrator
+Controller -> Model: reportModel.getReportById(report_id)
+Model -> BDD: SELECT r.*, u_reporter.username as reporter_username\nFROM report r\nJOIN user u_reporter ON r.reporter_user_id = u_reporter.user_id\nWHERE r.report_id = ?
+BDD --> Model: Détails du signalement
+Model --> Controller: Informations signalement
+
+alt Signalement concerne un commentaire
+Controller -> Model: commentModel.getCommentById(content_id)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.game_id,\nu.username as author_username,\nu.user_id as author_id,\ng.title as game_title\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nJOIN game g ON c.game_id = g.game_id\nWHERE c.comment_id = ?
+BDD --> Model: Commentaire signalé
+Model --> Controller: Détails du commentaire
+else Signalement concerne un utilisateur
+Controller -> Model: userModel.getUserById(content_id)
+Model -> BDD: SELECT user_id, username, email,\nregistration_date, is_active, bio\nFROM user\nWHERE user_id = ?
+BDD --> Model: Utilisateur signalé
+Model --> Controller: Détails de l'utilisateur
+end
+
+Controller --> Route: 200 + signalement + contenu signalé
+Route --> Front: 200 + détails complets
+Front --> Administrateur: Afficher détails du signalement\n+ contenu concerné
+
+== Traiter un signalement (approuver) ==
+Administrateur -> Front: Cliquer sur "Approuver le signalement"\n+ choisir action (supprimer contenu, désactiver compte)
+Front -> Route: PATCH /admin/reports/:report_id + action
+Route -> Controller: adminController.processReport(req, res)
+Controller -> Controller: Vérifier authentification JWT,\nrole administrator, extraire user_id (moderator)
+Controller -> Controller: Valider action\n(delete_content, disable_user, warning)
+
+Controller -> Model: reportModel.getReportById(report_id)
+Model -> BDD: SELECT content_type, content_id, status\nFROM report\nWHERE report_id = ?
+BDD --> Model: Informations signalement
+Model --> Controller: Détails signalement
+
+alt Signalement déjà traité
+Controller --> Route: 400 + "Signalement déjà traité"
+Route --> Front: 400 + message
+Front --> Administrateur: Afficher erreur
+else Signalement en attente
+alt Action: Supprimer le commentaire
+Controller -> Model: commentModel.deleteComment(content_id)
+Model -> BDD: DELETE FROM comment\nWHERE comment_id = ?
+BDD --> Model: Commentaire supprimé
+Model --> Controller: Suppression effectuée
+else Action: Désactiver le compte utilisateur
+Controller -> Model: userModel.disableUser(content_id)
+Model -> BDD: UPDATE user\nSET is_active = FALSE\nWHERE user_id = ?
+BDD --> Model: Compte désactivé
+Model --> Controller: Désactivation effectuée
+end
+
+Controller -> Model: reportModel.updateReportStatus(report_id, 'processed', moderator_id)
+Model -> BDD: UPDATE report\nSET status = 'processed',\nprocessed_at = NOW(),\nmoderator_user_id = ?\nWHERE report_id = ?
+BDD --> Model: Signalement mis à jour
+Model --> Controller: Signalement traité
+
+Controller --> Route: 200 + "Signalement traité avec succès"
+Route --> Front: 200 + confirmation
+Front --> Administrateur: Afficher message de succès\n+ retirer de la liste
+end
+
+== Rejeter un signalement ==
+Administrateur -> Front: Cliquer sur "Rejeter le signalement"
+Front -> Route: PATCH /admin/reports/:report_id\n+ status=rejected
+Route -> Controller: adminController.rejectReport(req, res)
+Controller -> Controller: Vérifier authentification JWT,\nrole administrator, extraire user_id
+
+Controller -> Model: reportModel.getReportById(report_id)
+Model -> BDD: SELECT status FROM report\nWHERE report_id = ?
+BDD --> Model: Statut actuel
+Model --> Controller: status
+
+alt Signalement déjà traité
+Controller --> Route: 400 + "Signalement déjà traité"
+Route --> Front: 400 + message
+Front --> Administrateur: Afficher erreur
+else Signalement en attente
+Controller -> Model: reportModel.updateReportStatus(report_id, 'rejected', moderator_id)
+Model -> BDD: UPDATE report\nSET status = 'rejected',\nprocessed_at = NOW(),\nmoderator_user_id = ?\nWHERE report_id = ?
+BDD --> Model: Signalement rejeté
+Model --> Controller: Rejet enregistré
+
+Controller --> Route: 200 + "Signalement rejeté"
+Route --> Front: 200 + confirmation
+Front --> Administrateur: Afficher message\n+ retirer de la liste
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Administrateur: Afficher message d'erreur
+end
+@enduml

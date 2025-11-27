@@ -1,0 +1,46 @@
+@startuml Feature_NoterJeu_Sequence
+title Feature: Noter un jeu (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Membre -> Front: Acceder a fiche d'un jeu
+Front --> Membre: Afficher option "Noter ce jeu"
+Membre -> Front: Cliquer sur "Noter"\net choisir note (0-10)
+Front -> Route: POST /games/:game_id/ratings + rating
+Route -> Controller: ratingController.rateGame(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider note\n(0 <= rating <= 10)
+
+alt Note invalide
+Controller --> Route: 400 + "Note doit etre entre 0 et 10"
+Route --> Front: 400 + message
+Front --> Membre: Afficher erreur
+else Note valide
+Controller -> Model: ratingModel.rateGame(user_id, game_id, rating)
+Model -> BDD: CALL sp_rate_game(user_id, game_id, rating)\n(upsert automatique via ON DUPLICATE KEY UPDATE)
+BDD --> Model: Note creee ou mise a jour
+Model --> Controller: Confirmation
+Controller --> Route: 200 + "Note enregistree"
+Route --> Front: 200 + confirmation
+Front --> Membre: Afficher "Note enregistree"
+
+Controller -> Model: ratingModel.getGameAverageRating(game_id)
+Model -> BDD: SELECT AVG(rating) as avg_rating,\nCOUNT(rating_id) as rating_count\nFROM rating\nWHERE game_id = ?
+BDD --> Model: Nouvelle moyenne
+Model --> Controller: Statistiques mises a jour
+Controller --> Route: Inclure nouvelle moyenne
+Route --> Front: Nouvelle moyenne
+Front --> Membre: Mettre a jour moyenne affichee
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

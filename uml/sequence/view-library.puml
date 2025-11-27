@@ -1,0 +1,38 @@
+@startuml Sequence_ConsulterBibliotheque
+title Diagramme de sequences : Consulter sa bibliotheque
+
+actor "Membre" as Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Database" as DB
+
+Membre -> Front : Accede a "Ma bibliotheque"
+Front -> Route : GET /library?page=1&limit=20&status=playing
+
+Route -> Controller : getMyLibrary(userId, page, limit, status)
+note right
+  JWT decode pour obtenir userId
+  Validation des parametres
+end note
+
+Controller -> Model : countLibraryGames(userId, status)
+Model -> DB : SELECT COUNT(*)\nFROM library\nWHERE user_id = ?\nAND (status = ? OR ? IS NULL)
+DB --> Model : totalGames
+
+Controller -> Model : getLibraryWithGames(userId, page, limit, status)
+Model -> DB : SELECT l.library_id, l.status, l.play_time,\nl.completion, g.game_id, g.title,\ng.cover_image, g.release_date\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nWHERE l.user_id = ?\nAND (l.status = ? OR ? IS NULL)\nORDER BY l.added_at DESC\nLIMIT ? OFFSET ?
+DB --> Model : games[]
+
+Model --> Controller : { totalGames, games[] }
+
+Controller -> Controller : Calculer metadonnees pagination\n(totalPages, currentPage, hasNext, hasPrev)
+
+Controller --> Route : 200 OK + { games[], pagination, stats }
+Route --> Front : 200 OK + bibliotheque
+
+Front -> Front : Afficher bibliotheque avec filtres\n(Joue, Termine, Abandonne, Wishlist)
+Front --> Membre : Bibliotheque affichee avec statistiques
+
+@enduml

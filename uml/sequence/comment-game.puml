@@ -1,0 +1,65 @@
+@startuml Feature_CommenterJeu_Sequence
+title Feature: Commenter un jeu (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+== Ajouter un commentaire ==
+Membre -> Front: Acceder a fiche d'un jeu
+Front --> Membre: Afficher section commentaires\navec formulaire
+Membre -> Front: Rediger et soumettre commentaire
+Front -> Route: POST /games/:game_id/comments + content
+Route -> Controller: commentController.addComment(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider contenu\n(longueur min/max, caracteres autorises)
+
+alt Contenu invalide
+Controller --> Route: 400 + "Commentaire invalide"
+Route --> Front: 400 + message
+Front --> Membre: Afficher erreur
+else Contenu valide
+Controller -> Model: commentModel.createComment(user_id, game_id, content)
+Model -> BDD: INSERT INTO comment\n(user_id, game_id, content, created_at)\nVALUES (?, ?, ?, NOW())
+BDD --> Model: comment_id genere
+Model --> Controller: Commentaire cree
+
+Controller -> Model: commentModel.getCommentById(comment_id)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+BDD --> Model: Commentaire complet
+Model --> Controller: Donnees commentaire
+
+Controller --> Route: 201 + commentaire
+Route --> Front: 201 + donnees
+Front --> Membre: Afficher nouveau commentaire\nen haut de la liste
+end
+
+== Consulter commentaires ==
+Membre -> Front: Scroller vers section commentaires
+Front -> Route: GET /games/:game_id/comments?page=1&limit=10
+Route -> Controller: commentController.getGameComments(req, res)
+Controller -> Model: commentModel.countGameComments(game_id)
+Model -> BDD: SELECT COUNT(*) as total\nFROM comment\nWHERE game_id = ?
+BDD --> Model: Nombre total
+Model --> Controller: totalResults
+
+Controller -> Model: commentModel.getGameComments(game_id, limit, offset)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.user_id, u.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.game_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste commentaires
+Model --> Controller: Commentaires pagines
+
+Controller -> Controller: Calculer metadonnees pagination
+
+Controller --> Route: 200 + commentaires + pagination
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher commentaires\navec options "Modifier/Supprimer" si proprietaire
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

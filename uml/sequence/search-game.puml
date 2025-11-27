@@ -1,0 +1,67 @@
+@startuml Feature_RechercherJeu_Sequence
+title Feature: Rechercher un jeu (séquence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+Visiteur -> Front: Saisir terme de recherche + filtres
+Front -> Route: GET /games?query=terme&platform=X&genre=Y\n&tag=Z&developer=D&publisher=P&store=S\n&page=1&limit=20
+Route -> Controller: gameController.searchGames(req, res)
+Controller -> Controller: Valider et nettoyer les paramètres\n(query, platform, genre, tag, developer,\npublisher, store, page, limit)
+Controller -> Controller: Valider pagination\n(page >= 1, limit: defaut 20, max 50)\nCalculer offset = (page - 1) * limit
+Controller -> Controller: Construire les critères de recherche\n(déterminer les filtres actifs)
+Controller -> Model: gameModel.countResults(searchCriteria)
+Model -> BDD: SELECT COUNT(DISTINCT g.game_id) as total\nFROM game g\n[... mêmes LEFT JOIN ...]\n[... mêmes WHERE ...]
+BDD --> Model: Nombre total de résultats
+Model --> Controller: totalResults
+
+Controller -> Model: gameModel.search(searchCriteria, limit, offset)
+Model -> BDD: SELECT DISTINCT g.game_id, g.title,\ng.cover_image, g.release_date, g.metacritic\nFROM game g\nLEFT JOIN game_platform gp ON g.game_id = gp.game_id\nLEFT JOIN platform p ON gp.platform_id = p.platform_id\nLEFT JOIN game_genre gg ON g.game_id = gg.game_id\nLEFT JOIN genre ge ON gg.genre_id = ge.genre_id\nLEFT JOIN game_tag gt ON g.game_id = gt.game_id\nLEFT JOIN tag t ON gt.tag_id = t.tag_id\nLEFT JOIN game_developer gd ON g.game_id = gd.game_id\nLEFT JOIN developer dev ON gd.developer_id = dev.developer_id\nLEFT JOIN game_publisher gp2 ON g.game_id = gp2.game_id\nLEFT JOIN publisher pub ON gp2.publisher_id = pub.publisher_id\nLEFT JOIN game_store gs ON g.game_id = gs.game_id\nLEFT JOIN store st ON gs.store_id = st.store_id\nWHERE (g.title LIKE ? OR ? IS NULL)\nAND (p.platform_id = ? OR ? IS NULL)\nAND (ge.genre_id = ? OR ? IS NULL)\nAND (t.tag_id = ? OR ? IS NULL)\nAND (dev.developer_id = ? OR ? IS NULL)\nAND (pub.publisher_id = ? OR ? IS NULL)\nAND (st.store_id = ? OR ? IS NULL)\nGROUP BY g.game_id\nLIMIT ? OFFSET ?
+BDD --> Model: Liste paginée de jeux
+Model --> Controller: Résultats de recherche
+
+Controller -> Controller: Calculer métadonnées pagination\ntotalPages = CEIL(totalResults / limit)\nhasNext = page < totalPages\nhasPrev = page > 1
+
+alt Résultats trouvés
+Controller --> Route: 200 + data + pagination metadata
+note right
+  {
+    data: liste de jeux,
+    pagination: {
+      currentPage, totalPages,
+      totalResults, limit,
+      hasNext, hasPrev
+    }
+  }
+end note
+Route --> Front: 200 + données + pagination
+Front --> Visiteur: Afficher résultats + navigation pagination
+else Aucun résultat
+Controller --> Route: 200 + data vide + pagination
+note right
+  {
+    data: [],
+    pagination: {
+      currentPage: 1,
+      totalPages: 0,
+      totalResults: 0,
+      limit: 20,
+      hasNext: false,
+      hasPrev: false
+    }
+  }
+end note
+Route --> Front: 200 + données vides
+Front --> Visiteur: Afficher message "Aucun jeu trouvé"
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Visiteur: Afficher message d'erreur
+end
+@enduml

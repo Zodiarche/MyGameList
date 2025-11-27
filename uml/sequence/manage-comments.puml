@@ -1,0 +1,108 @@
+@startuml Feature_GererCommentaires_Sequence
+title Feature: Gerer ses commentaires (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+== Modifier un commentaire ==
+Membre -> Front: Cliquer sur "Modifier"\nsur son commentaire
+Front --> Membre: Afficher formulaire\navec contenu actuel
+Membre -> Front: Modifier et soumettre
+Front -> Route: PATCH /comments/:comment_id + content
+Route -> Controller: commentController.updateComment(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Controller: Valider contenu
+
+Controller -> Model: commentModel.getCommentById(comment_id)
+Model -> BDD: SELECT user_id, game_id, content\nFROM comment\nWHERE comment_id = ?
+BDD --> Model: Informations commentaire
+Model --> Controller: Donnees commentaire
+
+alt Commentaire non trouve
+Controller --> Route: 404 + "Commentaire non trouve"
+Route --> Front: 404 + message
+Front --> Membre: Afficher erreur
+else Utilisateur non proprietaire
+Controller --> Route: 403 + "Non autorise"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Utilisateur proprietaire
+Controller -> Model: commentModel.updateComment(comment_id, new_content)
+Model -> BDD: UPDATE comment\nSET content = ?, updated_at = NOW()\nWHERE comment_id = ?
+BDD --> Model: Mise a jour effectuee
+Model --> Controller: Commentaire modifie
+
+Controller -> Model: commentModel.getCommentById(comment_id)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+BDD --> Model: Commentaire mis a jour
+Model --> Controller: Nouvelles donnees
+
+Controller --> Route: 200 + commentaire mis a jour
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher commentaire modifie\navec mention "Modifie"
+end
+
+== Supprimer un commentaire ==
+Membre -> Front: Cliquer sur "Supprimer"\nsur son commentaire
+Front --> Membre: Demander confirmation
+Membre -> Front: Confirmer suppression
+Front -> Route: DELETE /comments/:comment_id
+Route -> Controller: commentController.deleteComment(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+
+Controller -> Model: commentModel.getCommentById(comment_id)
+Model -> BDD: SELECT user_id FROM comment\nWHERE comment_id = ?
+BDD --> Model: Proprietaire du commentaire
+Model --> Controller: user_id
+
+alt Commentaire non trouve
+Controller --> Route: 404 + "Commentaire non trouve"
+Route --> Front: 404 + message
+Front --> Membre: Afficher erreur
+else Utilisateur non proprietaire
+Controller --> Route: 403 + "Non autorise"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Utilisateur proprietaire
+Controller -> Model: commentModel.deleteComment(comment_id)
+Model -> BDD: DELETE FROM comment\nWHERE comment_id = ?
+BDD --> Model: Suppression effectuee
+Model --> Controller: Commentaire supprime
+
+Controller --> Route: 204 No Content
+Route --> Front: 204
+Front --> Membre: Retirer commentaire de l'affichage\n+ message confirmation
+end
+
+== Consulter ses commentaires ==
+Membre -> Front: Acceder a "Mes commentaires"
+Front -> Route: GET /profile/comments?page=1&limit=20
+Route -> Controller: commentController.getUserComments(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+
+Controller -> Model: commentModel.countUserComments(user_id)
+Model -> BDD: SELECT COUNT(*) as total\nFROM comment\nWHERE user_id = ?
+BDD --> Model: Nombre total
+Model --> Controller: totalResults
+
+Controller -> Model: commentModel.getUserComments(user_id, limit, offset)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\ng.game_id, g.title, g.cover_image\nFROM comment c\nJOIN game g ON c.game_id = g.game_id\nWHERE c.user_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste commentaires avec jeux
+Model --> Controller: Commentaires de l'utilisateur
+
+Controller -> Controller: Calculer metadonnees pagination
+
+Controller --> Route: 200 + commentaires + pagination
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher liste des commentaires\navec options modifier/supprimer
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

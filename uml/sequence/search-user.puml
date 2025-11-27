@@ -1,0 +1,45 @@
+@startuml Feature_RechercherUtilisateur_Sequence
+title Feature: Rechercher un utilisateur (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Membre -> Front: Acceder a "Rechercher des membres"
+Front --> Membre: Afficher barre de recherche
+Membre -> Front: Saisir terme de recherche
+Front -> Route: GET /users/search?query=username&page=1&limit=20
+Route -> Controller: userController.searchUsers(req, res)
+Controller -> Controller: Verifier authentification JWT
+Controller -> Controller: Valider parametres\n(query, page, limit)
+Controller -> Model: userModel.countSearchResults(query)
+Model -> BDD: SELECT COUNT(*) as total\nFROM user\nWHERE username LIKE ?\nAND is_active = TRUE
+BDD --> Model: Nombre total de resultats
+Model --> Controller: totalResults
+
+Controller -> Model: userModel.searchUsers(query, limit, offset)
+Model -> BDD: SELECT u.user_id, u.username,\nu.avatar, u.bio\nFROM user u\nWHERE u.username LIKE ?\nAND u.is_active = TRUE\nLIMIT ? OFFSET ?
+BDD --> Model: Liste d'utilisateurs
+Model --> Controller: Resultats recherche
+
+Controller -> Controller: Calculer metadonnees pagination
+
+alt Resultats trouves
+Controller --> Route: 200 + utilisateurs + pagination
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher resultats\navec option "Ajouter en ami"
+else Aucun resultat
+Controller --> Route: 200 + liste vide
+Route --> Front: 200 + donnees vides
+Front --> Membre: Afficher "Aucun utilisateur trouve"
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

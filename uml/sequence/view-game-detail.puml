@@ -1,0 +1,69 @@
+@startuml Feature_ConsulterFicheJeu_Sequence
+title Feature: Consulter la fiche d'un jeu (sequence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Visiteur -> Front: Cliquer sur un jeu
+Front -> Route: GET /games/:game_id
+Route -> Controller: gameController.getGameDetail(req, res)
+Controller -> Model: gameModel.getGameById(game_id)
+Model -> BDD: SELECT g.game_id, g.title,\ng.cover_image, g.release_date,\ng.metacritic, g.website\nFROM game g\nWHERE g.game_id = ?
+BDD --> Model: Informations du jeu
+Model --> Controller: Donnees jeu
+
+alt Jeu non trouve
+Controller --> Route: 404 + "Jeu non trouve"
+Route --> Front: 404 + message
+Front --> Visiteur: Afficher erreur 404
+else Jeu trouve
+Controller -> Model: gameModel.getGamePlatforms(game_id)
+Model -> BDD: SELECT p.platform_id, p.name\nFROM platform p\nJOIN game_platform gp ON p.platform_id = gp.platform_id\nWHERE gp.game_id = ?
+BDD --> Model: Plateformes
+Model --> Controller: Liste plateformes
+
+Controller -> Model: gameModel.getGameGenres(game_id)
+Model -> BDD: SELECT g.genre_id, g.name\nFROM genre g\nJOIN game_genre gg ON g.genre_id = gg.genre_id\nWHERE gg.game_id = ?
+BDD --> Model: Genres
+Model --> Controller: Liste genres
+
+Controller -> Model: gameModel.getGameTags(game_id)
+Model -> BDD: SELECT t.tag_id, t.name\nFROM tag t\nJOIN game_tag gt ON t.tag_id = gt.tag_id\nWHERE gt.game_id = ?
+BDD --> Model: Tags
+Model --> Controller: Liste tags
+
+Controller -> Model: gameModel.getGameDevelopers(game_id)
+Model -> BDD: SELECT d.developer_id, d.name\nFROM developer d\nJOIN game_developer gd ON d.developer_id = gd.developer_id\nWHERE gd.game_id = ?
+BDD --> Model: Developpeurs
+Model --> Controller: Liste developpeurs
+
+Controller -> Model: gameModel.getGamePublishers(game_id)
+Model -> BDD: SELECT p.publisher_id, p.name\nFROM publisher p\nJOIN game_publisher gp ON p.publisher_id = gp.publisher_id\nWHERE gp.game_id = ?
+BDD --> Model: Editeurs
+Model --> Controller: Liste editeurs
+
+Controller -> Model: ratingModel.getGameAverageRating(game_id)
+Model -> BDD: SELECT AVG(rating) as avg_rating,\nCOUNT(rating_id) as rating_count\nFROM rating\nWHERE game_id = ?
+BDD --> Model: Note moyenne + nombre de notes
+Model --> Controller: Statistiques notation
+
+Controller -> Model: commentModel.getGameComments(game_id, limit: 5)
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.game_id = ?\nORDER BY c.created_at DESC\nLIMIT 5
+BDD --> Model: Derniers commentaires
+Model --> Controller: Liste commentaires
+
+Controller --> Route: 200 + fiche complete
+Route --> Front: 200 + toutes les donnees
+Front --> Visiteur: Afficher fiche complete du jeu
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Visiteur: Afficher message d'erreur
+end
+@enduml

@@ -1,0 +1,46 @@
+@startuml Feature_ParcourirListeJeux_Sequence
+title Feature: Parcourir la liste des jeux (sequence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Visiteur -> Front: Acceder a "Liste des jeux"
+Front -> Route: GET /games?page=1&limit=20&sort=title
+Route -> Controller: gameController.listGames(req, res)
+Controller -> Controller: Valider parametres\n(page, limit, sort)
+Controller -> Model: gameModel.countGames()
+Model -> BDD: SELECT COUNT(*) as total\nFROM game
+BDD --> Model: Nombre total de jeux
+Model --> Controller: totalResults
+
+Controller -> Model: gameModel.getGames(limit, offset, sort)
+Model -> BDD: SELECT g.game_id, g.title,\ng.cover_image, g.release_date,\ng.metacritic\nFROM game g\nORDER BY g.title ASC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste paginee de jeux
+Model --> Controller: Resultats
+
+Controller -> Controller: Calculer metadonnees pagination\ntotalPages = CEIL(totalResults / limit)\nhasNext = page < totalPages\nhasPrev = page > 1
+
+Controller --> Route: 200 + data + pagination
+note right
+  {
+    data: liste de jeux,
+    pagination: {
+      currentPage, totalPages,
+      totalResults, limit,
+      hasNext, hasPrev
+    }
+  }
+end note
+Route --> Front: 200 + donnees + pagination
+Front --> Visiteur: Afficher liste des jeux\navec pagination
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Visiteur: Afficher message d'erreur
+end
+@enduml

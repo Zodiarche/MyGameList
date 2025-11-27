@@ -1,0 +1,109 @@
+@startuml Feature_GererAmis_Sequence
+title Feature: Gerer les demandes d'amis (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+== Envoyer une demande d'ami ==
+Membre -> Front: Cliquer sur "Ajouter en ami"\nsur profil utilisateur
+Front -> Route: POST /friendships + addressee_user_id
+Route -> Controller: friendshipController.sendRequest(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire requester_user_id du token
+Controller -> Controller: Valider addressee_user_id
+
+alt Tentative de s'ajouter soi-meme
+Controller --> Route: 400 + "Impossible de s'ajouter soi-meme"
+Route --> Front: 400 + message
+Front --> Membre: Afficher erreur
+else Destinataire different
+Controller -> Model: friendshipModel.checkExisting(requester_id, addressee_id)
+Model -> BDD: SELECT friendship_id, status\nFROM friendship\nWHERE (requester_user_id = ? AND addressee_user_id = ?)\nOR (requester_user_id = ? AND addressee_user_id = ?)
+BDD --> Model: Relation existante ou null
+Model --> Controller: Amitie existante ou null
+
+alt Demande deja existante
+Controller --> Route: 409 + "Demande deja envoyee"
+Route --> Front: 409 + message
+Front --> Membre: Afficher erreur
+else Aucune relation
+Controller -> Model: friendshipModel.createRequest(requester_id, addressee_id)
+Model -> BDD: INSERT INTO friendship\n(requester_user_id, addressee_user_id,\nstatus, requested_at)\nVALUES (?, ?, 'pending', NOW())
+BDD --> Model: friendship_id genere
+Model --> Controller: Demande creee
+Controller --> Route: 201 + confirmation
+Route --> Front: 201 + message
+Front --> Membre: Afficher "Demande envoyee"
+end
+end
+
+== Consulter demandes recues ==
+Membre -> Front: Acceder a "Demandes d'amis"
+Front -> Route: GET /friendships/pending
+Route -> Controller: friendshipController.getPendingRequests(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Model: friendshipModel.getPendingRequests(user_id)
+Model -> BDD: SELECT f.friendship_id, f.requested_at,\nu.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user u ON f.requester_user_id = u.user_id\nWHERE f.addressee_user_id = ?\nAND f.status = 'pending'\nORDER BY f.requested_at DESC
+BDD --> Model: Liste des demandes
+Model --> Controller: Demandes en attente
+Controller --> Route: 200 + demandes
+Route --> Front: 200 + liste
+Front --> Membre: Afficher demandes en attente
+
+== Accepter une demande ==
+Membre -> Front: Cliquer sur "Accepter"
+Front -> Route: PATCH /friendships/:friendship_id + status=accepted
+Route -> Controller: friendshipController.respondToRequest(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Model: friendshipModel.getRequestById(friendship_id)
+Model -> BDD: SELECT requester_user_id,\naddressee_user_id, status\nFROM friendship\nWHERE friendship_id = ?
+BDD --> Model: Details de la demande
+Model --> Controller: Informations demande
+
+alt Utilisateur n'est pas le destinataire
+Controller --> Route: 403 + "Non autorise"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Demande deja traitee
+Controller --> Route: 400 + "Demande deja traitee"
+Route --> Front: 400 + message
+Front --> Membre: Afficher erreur
+else Utilisateur autorise et demande en attente
+Controller -> Model: friendshipModel.updateStatus(friendship_id, 'accepted')
+Model -> BDD: UPDATE friendship\nSET status = 'accepted',\nresponded_at = NOW()\nWHERE friendship_id = ?
+BDD --> Model: Mise a jour effectuee
+Model --> Controller: Demande acceptee
+Controller --> Route: 200 + confirmation
+Route --> Front: 200 + message
+Front --> Membre: Afficher "Ami ajoute"\n+ retirer de la liste
+end
+
+== Refuser une demande ==
+Membre -> Front: Cliquer sur "Refuser"
+Front -> Route: PATCH /friendships/:friendship_id + status=rejected
+Route -> Controller: friendshipController.respondToRequest(req, res)
+Controller -> Controller: Verifier authentification
+Controller -> Model: friendshipModel.getRequestById(friendship_id)
+Model -> BDD: SELECT requester_user_id,\naddressee_user_id, status\nFROM friendship WHERE friendship_id = ?
+BDD --> Model: Details de la demande
+Model --> Controller: Informations demande
+
+alt Utilisateur autorise
+Controller -> Model: friendshipModel.updateStatus(friendship_id, 'rejected')
+Model -> BDD: UPDATE friendship\nSET status = 'rejected',\nresponded_at = NOW()\nWHERE friendship_id = ?
+BDD --> Model: Mise a jour effectuee
+Model --> Controller: Demande refusee
+Controller --> Route: 200 + confirmation
+Route --> Front: 200 + message
+Front --> Membre: Afficher "Demande refusee"\n+ retirer de la liste
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

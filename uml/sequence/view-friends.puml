@@ -1,0 +1,36 @@
+@startuml Feature_ConsulterListeAmis_Sequence
+title Feature: Consulter la liste de ses amis (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Membre -> Front: Acceder a "Mes amis"
+Front -> Route: GET /friendships?page=1&limit=20
+Route -> Controller: friendshipController.getFriends(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
+Controller -> Model: friendshipModel.countFriends(user_id)
+Model -> BDD: SELECT COUNT(*) as total\nFROM friendship\nWHERE (requester_user_id = ? OR addressee_user_id = ?)\nAND status = 'accepted'
+BDD --> Model: Nombre d'amis
+Model --> Controller: totalResults
+
+Controller -> Model: friendshipModel.getFriends(user_id, limit, offset)
+Model -> BDD: SELECT DISTINCT\nCASE\n  WHEN f.requester_user_id = ? THEN f.addressee_user_id\n  ELSE f.requester_user_id\nEND as friend_user_id,\nu.username, u.avatar, u.bio,\nf.responded_at as friend_since\nFROM friendship f\nJOIN user u ON\n  (f.requester_user_id = ? AND u.user_id = f.addressee_user_id)\n  OR (f.addressee_user_id = ? AND u.user_id = f.requester_user_id)\nWHERE (f.requester_user_id = ? OR f.addressee_user_id = ?)\nAND f.status = 'accepted'\nORDER BY f.responded_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Liste d'amis avec infos
+Model --> Controller: Liste des amis
+
+Controller -> Controller: Calculer metadonnees pagination
+
+Controller --> Route: 200 + amis + pagination
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher liste des amis\navec options "Voir profil/collection"
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

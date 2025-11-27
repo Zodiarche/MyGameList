@@ -1,0 +1,52 @@
+@startuml Feature_ConsulterCollectionAmi_Sequence
+title Feature: Consulter la collection d'un ami (sequence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Membre -> Front: Cliquer sur "Voir collection"\nsur profil d'un ami
+Front -> Route: GET /users/:user_id/library?page=1&limit=20
+Route -> Controller: libraryController.getUserPublicLibrary(req, res)
+Controller -> Controller: Verifier authentification JWT\nExtraire requester_user_id du token
+Controller -> Model: friendshipModel.areFriends(requester_user_id, target_user_id)
+Model -> BDD: SELECT friendship_id\nFROM friendship\nWHERE ((requester_user_id = ? AND addressee_user_id = ?)\n   OR (requester_user_id = ? AND addressee_user_id = ?))\nAND status = 'accepted'
+BDD --> Model: Relation d'amitie ou null
+Model --> Controller: Sont amis ou non
+
+alt Non amis
+Controller --> Route: 403 + "Vous devez etre amis"
+Route --> Front: 403 + message
+Front --> Membre: Afficher erreur
+else Amis confirmes
+Controller -> Model: libraryModel.countUserGames(target_user_id)
+Model -> BDD: SELECT COUNT(*) as total\nFROM library\nWHERE user_id = ?
+BDD --> Model: Nombre de jeux
+Model --> Controller: totalResults
+
+Controller -> Model: libraryModel.getUserLibrary(target_user_id, limit, offset)
+Model -> BDD: SELECT l.library_id, l.status,\nl.added_at, l.play_time,\ng.game_id, g.title, g.cover_image,\np.name as platform_name\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nLEFT JOIN platform p ON l.owned_platform_id = p.platform_id\nWHERE l.user_id = ?\nORDER BY l.added_at DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Bibliotheque de l'ami
+Model --> Controller: Liste des jeux
+
+Controller -> Model: userModel.getUserById(target_user_id)
+Model -> BDD: SELECT username, avatar\nFROM user\nWHERE user_id = ?
+BDD --> Model: Infos utilisateur
+Model --> Controller: Nom et avatar
+
+Controller -> Controller: Calculer metadonnees pagination
+
+Controller --> Route: 200 + bibliotheque + user info + pagination
+Route --> Front: 200 + donnees
+Front --> Membre: Afficher collection de l'ami\navec statistiques
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

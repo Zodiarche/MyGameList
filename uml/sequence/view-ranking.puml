@@ -1,0 +1,48 @@
+@startuml Feature_ConsulterClassement_Sequence
+title Feature: Consulter le classement (sequence)
+actor Visiteur
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de donnees" as BDD
+
+Visiteur -> Front: Acceder a "Classement"
+Front -> Route: GET /games/ranking?page=1&limit=20&type=rating
+Route -> Controller: gameController.getRanking(req, res)
+Controller -> Controller: Valider parametres\n(page, limit, type: rating/metacritic/popular)
+
+alt Type = rating
+Controller -> Model: ratingModel.getTopRatedGames(limit, offset)
+Model -> BDD: SELECT g.game_id, g.title,\ng.cover_image, g.metacritic,\nAVG(r.rating) as avg_rating,\nCOUNT(r.rating_id) as rating_count\nFROM game g\nLEFT JOIN rating r ON g.game_id = r.game_id\nGROUP BY g.game_id\nHAVING rating_count >= 5\nORDER BY avg_rating DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Jeux top rated
+else Type = metacritic
+Controller -> Model: gameModel.getTopByMetacritic(limit, offset)
+Model -> BDD: SELECT g.game_id, g.title,\ng.cover_image, g.metacritic,\ng.release_date\nFROM game g\nWHERE g.metacritic IS NOT NULL\nORDER BY g.metacritic DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Jeux par Metacritic
+else Type = popular
+Controller -> Model: libraryModel.getMostOwned(limit, offset)
+Model -> BDD: SELECT g.game_id, g.title,\ng.cover_image, g.metacritic,\nCOUNT(l.library_id) as owner_count\nFROM game g\nLEFT JOIN library l ON g.game_id = l.game_id\nGROUP BY g.game_id\nORDER BY owner_count DESC\nLIMIT ? OFFSET ?
+BDD --> Model: Jeux les plus possedes
+end
+
+Model --> Controller: Classement des jeux
+
+Controller -> Model: gameModel.countGames()
+Model -> BDD: SELECT COUNT(*) FROM game
+BDD --> Model: Total
+Model --> Controller: totalResults
+
+Controller -> Controller: Calculer metadonnees pagination
+
+Controller --> Route: 200 + classement + pagination
+Route --> Front: 200 + donnees
+Front --> Visiteur: Afficher classement
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Visiteur: Afficher message d'erreur
+end
+@enduml
