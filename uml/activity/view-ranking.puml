@@ -1,0 +1,31 @@
+@startuml Activity_ConsulterClassement
+title Diagramme d'activite : Consulter le classement
+
+start
+
+:Visiteur accede a "Classement";
+
+:Envoyer GET /games/ranking?type=rating;
+
+:Valider parametres (type, page, limit);
+
+if (Type de classement ?) then (rating)
+  :Recuperer jeux top rated\nSELECT avec AVG(rating)\nGROUP BY game_id\nORDER BY avg_rating DESC;
+elseif (Type de classement ?) then (metacritic)
+  :Recuperer jeux par Metacritic\nSELECT WHERE metacritic IS NOT NULL\nORDER BY metacritic DESC;
+else (popular)
+  :Recuperer jeux les plus possedes\nSELECT avec COUNT(library)\nORDER BY owner_count DESC;
+endif
+
+if (Erreur BDD ?) then (oui)
+  :Renvoyer 500 + message;
+  :Afficher erreur;
+  stop
+else (non)
+  :Calculer pagination;
+  :Renvoyer 200 + classement;
+  :Afficher classement;
+  stop
+endif
+
+@enduml

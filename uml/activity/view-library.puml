@@ -1,0 +1,42 @@
+@startuml Activity_ConsulterBibliotheque
+title Diagramme d'activite : Consulter sa bibliotheque
+
+start
+
+:Membre accede a "Ma bibliotheque";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Afficher filtres (statut, tri);
+  
+  :Envoyer GET /library?status=playing;
+  
+  :Valider parametres (page, limit, status);
+  
+  :Compter jeux bibliotheque\nSELECT COUNT(*)\nFROM library\nWHERE user_id = ?\nAND (status = ? OR ? IS NULL);
+  
+  :Recuperer bibliotheque\nSELECT l.library_id, l.status,\nl.play_time, g.title, g.cover_image\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nWHERE l.user_id = ?\nAND (l.status = ? OR ? IS NULL)\nORDER BY l.added_at DESC\nLIMIT ? OFFSET ?;
+  
+  if (Erreur BDD ?) then (oui)
+    :Renvoyer 500;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Calculer statistiques\n(total jeux, par statut);
+    
+    :Calculer pagination;
+    
+    :Renvoyer 200 + bibliotheque + stats;
+    
+    :Afficher bibliotheque avec filtres;
+    
+    stop
+  endif
+endif
+
+@enduml

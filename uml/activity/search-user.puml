@@ -1,0 +1,39 @@
+@startuml Activity_RechercherUtilisateurs
+title Diagramme d'activite : Rechercher des utilisateurs
+
+start
+
+:Membre accede a "Recherche utilisateurs";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Afficher champ recherche;
+  
+  :Saisir criteres recherche;
+  
+  :Envoyer GET /users/search?q=username;
+  
+  :Valider parametres;
+  
+  :Compter utilisateurs\nSELECT COUNT(*)\nWHERE username LIKE ?;
+  
+  :Rechercher utilisateurs\nSELECT user_id, username, avatar\nFROM user\nWHERE username LIKE ?\nLIMIT ? OFFSET ?;
+  
+  if (Erreur BDD ?) then (oui)
+    :Renvoyer 500;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Calculer pagination;
+    :Renvoyer 200 + utilisateurs;
+    :Afficher resultats recherche;
+    stop
+  endif
+endif
+
+@enduml

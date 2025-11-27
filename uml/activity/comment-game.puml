@@ -1,0 +1,50 @@
+@startuml Activity_CommenterJeu
+title Diagramme d'activite : Commenter un jeu
+
+start
+
+:Membre accede fiche jeu;
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Afficher zone commentaire;
+  
+  :Rediger commentaire;
+  
+  :Envoyer POST /comments;
+  
+  :Valider contenu (3-2000 chars);
+  
+  if (Contenu invalide ?) then (oui)
+    :Renvoyer 400;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Verifier jeu existe;
+    
+    if (Jeu existe ?) then (non)
+      :Renvoyer 404;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Inserer commentaire\nINSERT INTO comment\n(user_id, game_id, content);
+      
+      if (Erreur BDD ?) then (oui)
+        :Renvoyer 500;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Renvoyer 201 + commentaire;
+        :Afficher commentaire poste;
+        stop
+      endif
+    endif
+  endif
+endif
+
+@enduml

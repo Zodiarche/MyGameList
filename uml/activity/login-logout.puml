@@ -1,0 +1,56 @@
+@startuml Activity_ConnexionDeconnexion
+title Diagramme d'activite : Se connecter / Se deconnecter
+
+start
+
+:Membre accede a la page de connexion;
+
+:Afficher formulaire\n(email, mot de passe);
+
+:Membre saisit identifiants et soumet;
+
+:Controller recoit POST /login;
+
+:Rechercher utilisateur par email\nSELECT user_id, username, email,\npassword, role, is_active\nFROM user WHERE email = ?;
+
+if (Utilisateur trouve ?) then (non)
+  :Renvoyer 401 "Identifiants invalides";
+  :Afficher erreur;
+  stop
+else (oui)
+  if (Compte actif ?) then (non)
+    :Renvoyer 403 "compte desactive";
+    :Afficher message de blocage;
+    stop
+  else (oui)
+    :Comparer mot de passe\navec bcrypt.compare();
+
+    if (Mot de passe correct ?) then (non)
+      :Renvoyer 401 "Identifiants invalides";
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Generer token JWT\n(user_id, role, expiration);
+
+      :Renvoyer 200 + token + user data;
+
+      :Stocker token JWT;
+      :Rediriger vers espace personnel;
+
+      :Membre clique sur "Se deconnecter";
+
+      :Controller recoit POST /logout + token;
+
+      :Invalider token\n(blacklist ou suppression session);
+
+      :Renvoyer 204 No Content;
+
+      :Supprimer token local;
+      :Rediriger vers page d'accueil;
+
+      stop
+    endif
+  endif
+endif
+
+@enduml

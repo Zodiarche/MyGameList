@@ -1,0 +1,27 @@
+@startuml Activity_ParcourirListeJeux
+title Diagramme d'activite : Parcourir la liste des jeux
+
+start
+
+:Visiteur accede a "Liste des jeux";
+
+:Envoyer GET /games?page=1&limit=20;
+
+:Valider parametres (page, limit, sort);
+
+:Compter nombre total de jeux\nSELECT COUNT(*) FROM game;
+
+:Recuperer jeux pagines\nSELECT game_id, title, cover_image\nFROM game ORDER BY title\nLIMIT ? OFFSET ?;
+
+if (Erreur BDD ?) then (oui)
+  :Renvoyer 500 + message;
+  :Afficher erreur;
+  stop
+else (non)
+  :Calculer metadonnees pagination;
+  :Renvoyer 200 + jeux + pagination;
+  :Afficher liste des jeux;
+  stop
+endif
+
+@enduml

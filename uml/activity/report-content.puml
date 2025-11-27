@@ -1,0 +1,69 @@
+@startuml Activity_SignalerContenu
+title Diagramme d'activite : Signaler un contenu
+
+note right
+  **Validation content_id**
+  Avant insertion, le backend verifie
+  que le contenu existe (comment OU user)
+  selon le content_type. Retourne 404 sinon.
+end note
+
+start
+
+:Membre voit contenu inapproprie;
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Cliquer "Signaler";
+
+  :Afficher formulaire signalement;
+
+  :Selectionner type (spam, offense, autre);
+
+  :Rediger raison;
+
+  :Envoyer POST /reports;
+
+  :Valider donnees;
+
+  if (Donnees invalides ?) then (oui)
+    :Renvoyer 400;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Verifier contenu existe;
+
+    if (Contenu existe ?) then (non)
+      :Renvoyer 404;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Verifier signalement existant\nSELECT FROM report\nWHERE reporter_id = ?\nAND target_type = ?\nAND target_id = ?;
+
+      if (Deja signale ?) then (oui)
+        :Renvoyer 409;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Inserer signalement\nINSERT INTO report\n(reporter_id, target_type,\ntarget_id, reason);
+
+        if (Erreur BDD ?) then (oui)
+          :Renvoyer 500;
+          :Afficher erreur;
+          stop
+        else (non)
+          :Renvoyer 201;
+          :Afficher confirmation;
+          stop
+        endif
+      endif
+    endif
+  endif
+endif
+
+@enduml

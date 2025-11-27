@@ -1,0 +1,49 @@
+@startuml Activity_ConsulterBibliothequeAmi
+title Diagramme d'activite : Consulter la bibliotheque d'un ami
+
+start
+
+:Membre clique sur profil ami;
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Envoyer GET /users/:user_id/library;
+  
+  :Verifier utilisateur existe;
+  
+  if (Utilisateur existe ?) then (non)
+    :Renvoyer 404;
+    :Afficher erreur;
+    stop
+  else (oui)
+    :Verifier si ami\nSELECT FROM friendship\nWHERE status='accepted';
+    
+    if (Est ami ?) then (non)
+      :Renvoyer 403;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Compter jeux bibliotheque;
+      
+      :Recuperer bibliotheque\nSELECT g.game_id, g.title, l.status\nFROM library l\nJOIN game g\nWHERE l.user_id = ?\nLIMIT ? OFFSET ?;
+      
+      if (Erreur BDD ?) then (oui)
+        :Renvoyer 500;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Calculer pagination;
+        :Renvoyer 200 + bibliotheque;
+        :Afficher bibliotheque ami;
+        stop
+      endif
+    endif
+  endif
+endif
+
+@enduml

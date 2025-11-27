@@ -1,0 +1,55 @@
+@startuml Activity_Inscription
+title Diagramme d'activité : S'inscrire
+
+start
+
+:Visiteur accède au formulaire d'inscription;
+
+:Afficher formulaire\n(email, pseudo, mot de passe);
+
+:Visiteur remplit et soumet le formulaire;
+
+:Front envoie POST /register;
+
+:Route transmet au Controller;
+
+:Controller valide les données\n(format email, longueur mot de passe);
+
+if (Données valides ?) then (non)
+  :Renvoyer 400 + erreurs de validation;
+  :Afficher messages d'erreur;
+  stop
+else (oui)
+  :Rechercher email en base de données;
+  
+  if (Email existe déjà ?) then (oui)
+    :Renvoyer 409 + "Email existant";
+    :Afficher erreur email déjà utilisé;
+    stop
+  else (non)
+    :Rechercher username en base de données;
+    
+    if (Username existe déjà ?) then (oui)
+      :Renvoyer 409 + "Pseudo existant";
+      :Afficher erreur pseudo déjà utilisé;
+      stop
+    else (non)
+      :Hasher le mot de passe (bcrypt);
+      
+      :Créer utilisateur en base de données\nINSERT INTO user;
+      
+      if (Erreur BDD ?) then (oui)
+        :Renvoyer 500 + erreur serveur;
+        :Afficher message d'erreur;
+        stop
+      else (non)
+        :Renvoyer 201 + confirmation;
+        :Afficher message de succès;
+        :Proposer de se connecter;
+        stop
+      endif
+    endif
+  endif
+endif
+
+@enduml

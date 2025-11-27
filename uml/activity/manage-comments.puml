@@ -1,0 +1,62 @@
+@startuml Activity_GererCommentaires
+title Diagramme d'activite : Gerer ses commentaires
+
+start
+
+:Membre accede a "Mes commentaires";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Envoyer GET /comments/me;
+  
+  :Compter commentaires\nSELECT COUNT(*)\nWHERE user_id = ?;
+  
+  :Recuperer commentaires\nSELECT c.*, g.title\nFROM comment c\nJOIN game g\nWHERE c.user_id = ?\nLIMIT ? OFFSET ?;
+  
+  :Afficher liste commentaires;
+  
+  if (Action ?) then (Modifier)
+    :Cliquer "Modifier";
+    :Afficher formulaire edition;
+    :Soumettre PATCH /comments/:id;
+    :Valider contenu;
+    :Verifier proprietaire\nWHERE comment_id = ? AND user_id = ?;
+    
+    if (Pas proprietaire ?) then (oui)
+      :Renvoyer 403;
+      :Afficher erreur;
+      stop
+    else (non)
+      :UPDATE comment SET content = ?;
+      :Renvoyer 200;
+      :Afficher succes;
+      stop
+    endif
+    
+  elseif (Action ?) then (Supprimer)
+    :Cliquer "Supprimer";
+    :Confirmer suppression;
+    :Envoyer DELETE /comments/:id;
+    :Verifier proprietaire;
+    
+    if (Pas proprietaire ?) then (oui)
+      :Renvoyer 403;
+      stop
+    else (non)
+      :DELETE FROM comment;
+      :Renvoyer 204;
+      :Afficher confirmation;
+      stop
+    endif
+    
+  else (Consulter)
+    stop
+  endif
+endif
+
+@enduml

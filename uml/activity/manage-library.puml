@@ -1,0 +1,110 @@
+@startuml Activity_GererBibliotheque
+title Diagramme d'activite : Gerer sa bibliotheque
+
+start
+
+:Membre accede a "Ma bibliotheque";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401 Unauthorized;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Extraire user_id du token;
+
+  :Compter jeux de l'utilisateur\nSELECT COUNT(*) FROM library\nWHERE user_id = ?;
+
+  :Recuperer liste paginee\nSELECT l.library_id, l.status,\ng.title, g.cover_image\nFROM library l JOIN game g\nWHERE l.user_id = ?\nLIMIT ? OFFSET ?;
+
+  :Renvoyer liste paginee\n+ metadonnees;
+
+  :Afficher bibliotheque\navec filtres par statut;
+
+  if (Action choisie ?) then (Ajouter un jeu)
+    :Cliquer sur "Ajouter"\ndepuis fiche jeu;
+
+    :Afficher formulaire\n(statut, plateforme);
+
+    :Soumettre formulaire\nPOST /library + donnees;
+
+    :Verifier authentification;
+
+    :Valider donnees;
+
+    :Verifier si game_id existe\nSELECT game_id FROM game\nWHERE game_id = ?;
+
+    if (Jeu existe en base ?) then (non)
+      :Renvoyer 404 "Jeu introuvable";
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Verifier si jeu deja present\nSELECT library_id FROM library\nWHERE user_id = ? AND game_id = ?;
+
+      if (Jeu existe deja ?) then (oui)
+        :Renvoyer 409 "Deja present";
+        :Afficher erreur;
+        stop
+      else (non)
+        :Inserer jeu en bibliotheque\nINSERT INTO library;
+
+        :Renvoyer 201 + confirmation;
+
+        :Afficher succes\n+ mettre a jour affichage;
+        stop
+      endif
+    endif
+
+  elseif (Action choisie ?) then (Modifier statut/infos)
+    :Cliquer sur "Modifier";
+
+    :Afficher formulaire\n(statut, temps de jeu, plateforme);
+
+    :Modifier et soumettre\nPATCH /library/:library_id;
+
+    :Verifier authentification;
+
+    :Verifier propriete\nSELECT user_id FROM library\nWHERE library_id = ?;
+
+    if (Proprietaire ?) then (non)
+      :Renvoyer 403 Forbidden;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Mettre a jour bibliotheque\nUPDATE library;
+
+      :Renvoyer 200 + donnees mises a jour;
+
+      :Afficher confirmation\n+ mise a jour affichage;
+      stop
+    endif
+
+  elseif (Action choisie ?) then (Retirer un jeu)
+    :Cliquer sur "Retirer";
+
+    :Confirmer suppression\nDELETE /library/:library_id;
+
+    :Verifier authentification;
+
+    :Verifier propriete\nSELECT user_id FROM library\nWHERE library_id = ?;
+
+    if (Proprietaire ?) then (non)
+      :Renvoyer 403 Forbidden;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Supprimer de la bibliotheque\nDELETE FROM library;
+
+      :Renvoyer 204 No Content;
+
+      :Retirer de l'affichage\n+ confirmation;
+      stop
+    endif
+
+  else (Consulter uniquement)
+    stop
+  endif
+endif
+
+@enduml

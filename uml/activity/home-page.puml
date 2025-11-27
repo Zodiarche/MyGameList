@@ -1,0 +1,37 @@
+@startuml Activity_ConsulterPageAccueil
+title Diagramme d'activité : Consulter la page d'accueil
+
+start
+
+:Visiteur ouvre l'URL racine;
+
+:Front envoie requête GET /home;
+
+:Route reçoit la requête;
+
+:Controller traite la demande;
+
+partition "Récupération des données" {
+  fork
+    :Récupérer 10 jeux populaires\n(triés par Metacritic);
+  fork again
+    :Récupérer 10 nouveautés\n(triées par date de sortie);
+  fork again
+    :Récupérer 10 jeux top rated\n(moyenne des notes);
+  end fork
+}
+
+if (Erreur base de données ?) then (oui)
+  :Controller renvoie erreur 500;
+  :Front affiche page d'erreur;
+  stop
+else (non)
+  :Controller assemble les données;
+  :Controller renvoie 200 + données;
+  :Front reçoit les données;
+  :Afficher page d'accueil avec\n- Jeux populaires\n- Nouveautés\n- Top rated;
+endif
+
+stop
+
+@enduml

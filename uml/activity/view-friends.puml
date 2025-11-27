@@ -1,0 +1,33 @@
+@startuml Activity_ConsulterListeAmis
+title Diagramme d'activite : Consulter sa liste d'amis
+
+start
+
+:Membre accede a "Mes amis";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Envoyer GET /friendships?status=accepted;
+  
+  :Compter amis\nSELECT COUNT(*)\nWHERE status='accepted';
+  
+  :Recuperer liste amis\nSELECT u.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user u\nWHERE status='accepted'\nLIMIT ? OFFSET ?;
+  
+  if (Erreur BDD ?) then (oui)
+    :Renvoyer 500;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Calculer pagination;
+    :Renvoyer 200 + amis;
+    :Afficher liste amis;
+    stop
+  endif
+endif
+
+@enduml

@@ -1,0 +1,67 @@
+@startuml Activity_GererProfil
+title Diagramme d'activite : Gerer son profil
+
+start
+
+:Membre accede a "Mon profil";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Recuperer profil utilisateur\nSELECT FROM user WHERE user_id = ?;
+  
+  :Afficher profil;
+  
+  if (Action ?) then (Modifier profil)
+    :Afficher formulaire;
+    :Soumettre modifications\nPATCH /profile;
+    :Valider donnees;
+    :Verifier username unique\nSELECT WHERE username = ?;
+    
+    if (Username deja pris ?) then (oui)
+      :Renvoyer 409;
+      :Afficher erreur;
+      stop
+    else (non)
+      :Verifier email unique;
+      
+      if (Email deja pris ?) then (oui)
+        :Renvoyer 409;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Mettre a jour profil\nUPDATE user SET...;
+        :Renvoyer 200 + profil;
+        :Afficher confirmation;
+        stop
+      endif
+    endif
+    
+  elseif (Action ?) then (Changer mot de passe)
+    :Afficher formulaire mots de passe;
+    :Soumettre PATCH /profile/password;
+    :Recuperer password actuel;
+    :Verifier ancien mot de passe;
+    
+    if (Mot de passe incorrect ?) then (oui)
+      :Renvoyer 401;
+      :Afficher erreur;
+      stop
+    else (non)
+      :Hasher nouveau mot de passe;
+      :UPDATE user SET password;
+      :Renvoyer 200;
+      :Afficher succes;
+      stop
+    endif
+    
+  else (Consulter uniquement)
+    stop
+  endif
+endif
+
+@enduml

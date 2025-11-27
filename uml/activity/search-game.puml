@@ -1,0 +1,65 @@
+@startuml Activity_RechercherJeu
+title Diagramme d'activité : Rechercher un jeu
+
+start
+
+:Visiteur saisit terme de recherche\net sélectionne filtres optionnels;
+
+note right
+  Filtres disponibles:
+  - Titre (query)
+  - Plateforme
+  - Genre
+  - Tag
+  - Developer
+  - Publisher
+  - Store
+end note
+
+:Front envoie GET /games\navec paramètres + pagination;
+
+:Route transmet au Controller;
+
+:Controller valide les paramètres;
+
+:Valider pagination\n(page ≥ 1, limit: défaut 20, max 50);
+
+:Calculer offset = (page - 1) * limit;
+
+:Construire critères de recherche\n(déterminer filtres actifs);
+
+partition "Exécution des requêtes" {
+  :Compter le nombre total de résultats\nSELECT COUNT(DISTINCT game_id);
+  
+  :Récupérer les jeux paginés\nSELECT avec LEFT JOIN\n+ WHERE conditionnels\n+ LIMIT et OFFSET;
+}
+
+if (Erreur base de données ?) then (oui)
+  :Renvoyer 500 + message d'erreur;
+  :Afficher message d'erreur;
+  stop
+else (non)
+  :Calculer métadonnées pagination\n- totalPages\n- hasNext\n- hasPrev;
+  
+  if (Résultats trouvés ?) then (non)
+    :Renvoyer 200 + liste vide\n+ pagination (totalResults: 0);
+    :Afficher "Aucun jeu trouvé";
+    stop
+  else (oui)
+    :Renvoyer 200 + liste de jeux\n+ métadonnées pagination;
+    
+    :Afficher résultats de recherche;
+    
+    :Afficher navigation pagination\n(pages, suivant, précédent);
+    
+    if (Utilisateur clique sur page suivante ?) then (oui)
+      :Incrémenter numéro de page;
+      :Relancer la recherche;
+      stop
+    else (non)
+      stop
+    endif
+  endif
+endif
+
+@enduml

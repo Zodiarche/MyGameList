@@ -1,0 +1,99 @@
+@startuml Activity_GererUtilisateurs
+title Diagramme d'activite : Gerer les utilisateurs (Admin)
+
+start
+
+:Admin accede a "Gestion utilisateurs";
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Verifier role administrateur;
+  
+  if (Pas admin ?) then (oui)
+    :Renvoyer 403;
+    :Afficher erreur;
+    stop
+  else (non)
+    if (Action ?) then (Liste utilisateurs)
+      :Envoyer GET /admin/users;
+      :Compter utilisateurs totaux;
+      :Compter membres actifs;
+      :Compter comptes desactives;
+      
+      :Recuperer liste utilisateurs\nSELECT user_id, username,\nemail, role, is_active\nFROM user\nORDER BY created_at DESC\nLIMIT ? OFFSET ?;
+      
+      :Calculer pagination;
+      :Renvoyer 200 + liste + stats;
+      :Afficher tableau utilisateurs;
+      stop
+      
+    elseif (Action ?) then (Voir detail)
+      :Cliquer sur utilisateur;
+      :Envoyer GET /admin/users/:id;
+      :Recuperer utilisateur complet;
+      :Compter jeux bibliotheque;
+      :Compter commentaires postes;
+      :Compter signalements recus;
+      :Renvoyer 200 + detail;
+      :Afficher fiche utilisateur;
+      stop
+      
+    elseif (Action ?) then (Desactiver compte)
+      :Cliquer "Desactiver";
+      :Confirmer action;
+      :Envoyer PATCH /admin/users/:id/disable;
+      :Recuperer utilisateur;
+      
+      if (Utilisateur existe ?) then (non)
+        :Renvoyer 404;
+        stop
+      else (oui)
+        :Verifier si admin cible;
+        
+        if (Cible est admin ?) then (oui)
+          :Renvoyer 403;
+          :Afficher erreur;
+          stop
+        else (non)
+          :UPDATE user SET is_active = false;
+          :Renvoyer 200;
+          :Afficher succes;
+          stop
+        endif
+      endif
+      
+    elseif (Action ?) then (Reactiver compte)
+      :Cliquer "Reactiver";
+      :Envoyer PATCH /admin/users/:id/activate;
+      :UPDATE user SET is_active = true;
+      :Renvoyer 200;
+      :Afficher succes;
+      stop
+      
+    else (Changer role)
+      :Cliquer "Changer role";
+      :Afficher formulaire role;
+      :Selectionner nouveau role;
+      :Envoyer PATCH /admin/users/:id/role;
+      :Verifier pas auto-modification;
+      
+      if (Modification soi-meme ?) then (oui)
+        :Renvoyer 403;
+        :Afficher erreur;
+        stop
+      else (non)
+        :UPDATE user SET role = ?;
+        :Renvoyer 200;
+        :Afficher succes;
+        stop
+      endif
+    endif
+  endif
+endif
+
+@enduml

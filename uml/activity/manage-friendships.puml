@@ -1,0 +1,80 @@
+@startuml Activity_GererAmities
+title Diagramme d'activite : Gerer les amities
+
+start
+
+:Membre accede gestion amis;
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  if (Action ?) then (Envoyer demande)
+    :Cliquer "Ajouter ami";
+    :Envoyer POST /friendships;
+    :Verifier cible existe;
+    
+    if (Utilisateur existe ?) then (non)
+      :Renvoyer 404;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Verifier si deja ami\nSELECT FROM friendship;
+      
+      if (Deja ami ?) then (oui)
+        :Renvoyer 409;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Creer demande\nINSERT INTO friendship\nstatus='pending';
+        :Renvoyer 201;
+        :Afficher succes;
+        stop
+      endif
+    endif
+    
+  elseif (Action ?) then (Accepter demande)
+    :Cliquer "Accepter";
+    :Envoyer PATCH /friendships/:id/accept;
+    :Recuperer demande\nWHERE friendship_id = ?;
+    
+    if (Demande existe ?) then (non)
+      :Renvoyer 404;
+      stop
+    else (oui)
+      :Verifier destinataire;
+      
+      if (Pas autorise ?) then (oui)
+        :Renvoyer 403;
+        stop
+      else (non)
+        :UPDATE status='accepted';
+        :Renvoyer 200;
+        :Afficher succes;
+        stop
+      endif
+    endif
+    
+  elseif (Action ?) then (Refuser demande)
+    :Cliquer "Refuser";
+    :Envoyer PATCH /friendships/:id/reject;
+    :Verifier autorisation;
+    :UPDATE status='rejected';
+    :Renvoyer 200;
+    stop
+    
+  else (Supprimer ami)
+    :Cliquer "Supprimer";
+    :Envoyer DELETE /friendships/:id;
+    :Verifier autorisation;
+    :DELETE FROM friendship;
+    :Renvoyer 204;
+    :Afficher confirmation;
+    stop
+  endif
+endif
+
+@enduml

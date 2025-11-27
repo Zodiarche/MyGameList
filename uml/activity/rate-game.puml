@@ -1,0 +1,52 @@
+@startuml Activity_NoterJeu
+title Diagramme d'activite : Noter un jeu
+
+start
+
+:Membre accede fiche jeu;
+
+:Verifier authentification JWT;
+
+if (Token valide ?) then (non)
+  :Renvoyer 401;
+  :Rediriger vers connexion;
+  stop
+else (oui)
+  :Afficher option de notation;
+
+  :Cliquer sur note (0-10);
+
+  :Envoyer POST /games/:game_id/ratings;
+
+  :Valider note (0-10);
+
+  if (Note invalide ?) then (oui)
+    :Renvoyer 400;
+    :Afficher erreur;
+    stop
+  else (non)
+    :Verifier jeu existe;
+
+    if (Jeu existe ?) then (non)
+      :Renvoyer 404;
+      :Afficher erreur;
+      stop
+    else (oui)
+      :Appeler sp_rate_game(user_id, game_id, rating)\n(upsert automatique);
+
+      :Calculer nouvelle moyenne\nSELECT AVG(rating)\nFROM rating WHERE game_id = ?;
+
+      if (Erreur BDD ?) then (oui)
+        :Renvoyer 500;
+        :Afficher erreur;
+        stop
+      else (non)
+        :Renvoyer 200 + note;
+        :Afficher note mise a jour;
+        stop
+      endif
+    endif
+  endif
+endif
+
+@enduml
