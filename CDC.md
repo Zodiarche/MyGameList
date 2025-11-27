@@ -385,8 +385,111 @@ Les contenus gérés sont :
 - commentaires
 - listes personnelles (bibliothèques)
 
-Les droits d’utilisation des images et textes doivent être respectés.
+Les droits d'utilisation des images et textes doivent être respectés.
 Les données personnelles sont protégées selon le RGPD.
+
+### 2.7.4. Gestion des images
+
+#### **Images de jeux (cover_image)**
+
+Les images de jeux proviennent d'une API externe (RAWG) et sont stockées sous forme d'URL.
+
+**Stockage** :
+
+- URLs externes uniquement (pas de stockage local)
+- Format : `https://media.rawg.io/media/games/...`
+- Pas de téléchargement nécessaire
+
+**Exemple en base** :
+
+```sql
+UPDATE game SET cover_image = 'https://media.rawg.io/media/games/456/456.jpg'
+WHERE game_id = 123;
+```
+
+#### **Avatars utilisateurs (avatar)**
+
+Les avatars sont uploadés par les utilisateurs et nécessitent un stockage.
+
+**Stockage Local** ✅
+
+**Caractéristiques** :
+
+- Taille maximale : 2 MB
+- Formats acceptés : JPEG, PNG, WebP
+- Résolution recommandée : 200x200 px
+- Stockage : `backend/uploads/avatars/`
+
+**Implémentation** :
+
+```javascript
+// Backend - Configuration Multer
+import multer from 'multer';
+import path from 'path';
+
+const storage = multer.diskStorage({
+  destination: 'uploads/avatars/',
+  filename: (req, file, cb) => {
+    const userId = req.session.userId;
+    const ext = path.extname(file.originalname);
+    cb(null, `user-${userId}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    cb(null, allowed.includes(file.mimetype));
+  }
+});
+
+// Route upload
+app.post('/api/user/avatar', requireAuth,
+  upload.single('avatar'),
+  async (req, res) => {
+    const avatarUrl = `/uploads/avatars/user-${req.session.userId}.jpg`;
+    await db.query('UPDATE user_account SET avatar = ? WHERE user_id = ?',
+      [avatarUrl, req.session.userId]);
+    res.json({ avatar: avatarUrl });
+  }
+);
+
+// Servir les fichiers statiques
+app.use('/uploads', express.static('uploads'));
+```
+
+**Stockage en base** :
+
+```sql
+-- user_account.avatar contient le chemin relatif
+UPDATE user_account SET avatar = '/uploads/avatars/user-123.jpg'
+WHERE user_id = 123;
+
+-- Ou NULL si pas d'avatar
+UPDATE user_account SET avatar = NULL WHERE user_id = 456;
+```
+
+#### **Sécurité uploads**
+
+**Validations obligatoires** :
+
+- Vérification MIME type (pas uniquement extension)
+- Limite de taille stricte (2 MB)
+
+**Protection** :
+
+```javascript
+// Vérifier le MIME type réel (pas l'extension)
+import fileType from 'file-type';
+
+const validateImage = async (filePath) => {
+  const type = await fileType.fromFile(filePath);
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  return allowed.includes(type?.mime);
+};
+```
 
 ### 2.7.3. Inventaire des besoins fonctionnels
 

@@ -51,6 +51,7 @@ services:
       - "3001:3001"
     volumes:
       - ./backend:/app
+      - ./backend/uploads:/app/uploads
       - /app/node_modules
       - backend_node_modules_cache:/root/.npm
     environment:
