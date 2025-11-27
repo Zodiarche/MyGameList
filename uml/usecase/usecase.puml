@@ -1,0 +1,91 @@
+@startuml MyGameList
+title Diagramme de cas d'utilisation pour un réseau social de collection de jeux vidéo
+
+left to right direction
+
+actor "Visiteur" as Visiteur
+actor "Membre" as Membre
+actor "Administrateur" as Admin
+
+Visiteur <|-- Membre
+Membre <|-- Admin
+
+rectangle "Réseau social de collection de jeux vidéo" {
+
+  ' --- Accès & navigation ---
+  usecase "Consulter la page d'accueil" as UC_Home
+  usecase "S'inscrire" as UC_Register
+  usecase "Se connecter / Se déconnecter" as UC_Auth
+
+  usecase "Rechercher un jeu" as UC_SearchGame
+  usecase "Parcourir la liste des jeux" as UC_ListGames
+  usecase "Consulter le classement" as UC_Ranking
+  usecase "Consulter la fiche d'un jeu" as UC_ViewGame
+
+  ' --- Profil & espace personnel ---
+  usecase "Gérer son profil" as UC_Profile
+
+  ' --- Bibliothèque personnelle ---
+  usecase "Consulter sa bibliothèque" as UC_ViewLibrary
+  usecase "Gérer sa bibliothèque" as UC_ManageLibrary
+  usecase "Ajouter un jeu à sa bibliothèque" as UC_AddGame
+  usecase "Retirer un jeu de sa bibliothèque" as UC_RemoveGame
+
+  ' --- Dimension sociale ---
+  usecase "Rechercher un utilisateur" as UC_SearchUser
+  usecase "Envoyer une demande d'ami" as UC_AddFriend
+  usecase "Accepter / refuser une demande d'ami" as UC_ManageFriendRequests
+  usecase "Consulter la liste de ses amis" as UC_ViewFriends
+  usecase "Consulter la collection d'un ami" as UC_ViewFriendCollection
+
+  ' --- Notation & commentaires ---
+  usecase "Noter un jeu" as UC_RateGame
+  usecase "Commenter un jeu" as UC_CommentGame
+  usecase "Gérer ses commentaires" as UC_ManageComments
+  usecase "Signaler un contenu" as UC_ReportContent
+
+  ' --- Administration ---
+  usecase "Modérer les contenus" as UC_ModerateContent
+  usecase "Gérer les comptes" as UC_ManageAccounts
+}
+
+' --- Visiteur ---
+Visiteur --> UC_Home
+Visiteur --> UC_SearchGame
+Visiteur --> UC_ListGames
+Visiteur --> UC_Ranking
+Visiteur --> UC_ViewGame
+Visiteur --> UC_Register
+
+' --- Membre (en plus de Visiteur) ---
+Membre --> UC_Auth
+Membre --> UC_Profile
+Membre --> UC_ViewLibrary
+Membre --> UC_ManageLibrary
+Membre --> UC_AddGame
+Membre --> UC_RemoveGame
+Membre --> UC_SearchUser
+Membre --> UC_AddFriend
+Membre --> UC_ManageFriendRequests
+Membre --> UC_ViewFriends
+Membre --> UC_ViewFriendCollection
+Membre --> UC_RateGame
+Membre --> UC_CommentGame
+Membre --> UC_ManageComments
+Membre --> UC_ReportContent
+
+' --- Administrateur (en plus de Membre) ---
+Admin --> UC_ModerateContent
+Admin --> UC_ManageAccounts
+
+' --- Relations fonctionnelles depuis la fiche jeu ---
+UC_RateGame ..> UC_ViewGame : <<extend>>
+UC_CommentGame ..> UC_ViewGame : <<extend>>
+UC_ReportContent ..> UC_ViewGame : <<extend>>
+
+' --- Relations bibliothèque ---
+UC_ManageLibrary ..> UC_ViewLibrary : <<include>>
+UC_ManageLibrary ..> UC_AddGame : <<include>>
+UC_ManageLibrary ..> UC_RemoveGame : <<include>>
+
+@enduml
