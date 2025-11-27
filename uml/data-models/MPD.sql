@@ -26,11 +26,13 @@ CREATE TABLE user_account (
     registration_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     role ENUM('member', 'administrator') NOT NULL DEFAULT 'member',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    deleted_at DATETIME DEFAULT NULL COMMENT 'Date de suppression (soft delete)',
 
     INDEX idx_username (username),
     INDEX idx_email (email),
     INDEX idx_role (role),
-    INDEX idx_is_active (is_active)
+    INDEX idx_is_active (is_active),
+    INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des utilisateurs';
 
 -- ============================================
@@ -196,10 +198,12 @@ CREATE TABLE game_comment (
     content TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL COMMENT 'Date de suppression (soft delete)',
 
     INDEX idx_user_game_comment (user_id),
     INDEX idx_game_game_comment (game_id),
     INDEX idx_created_at (created_at DESC),
+    INDEX idx_deleted_at (deleted_at),
     FULLTEXT idx_fulltext_content (content),
 
     CONSTRAINT fk_game_comment_user
@@ -419,14 +423,16 @@ CREATE OR REPLACE VIEW view_game_statistics AS
 SELECT
     g.game_id,
     g.title,
-    COUNT(DISTINCT r.user_id) AS rating_count,
-    ROUND(AVG(r.rating), 1) AS average_rating,
-    COUNT(DISTINCT gc.comment_id) AS comment_count,
-    COUNT(DISTINCT l.user_id) AS owner_count
+    COUNT(DISTINCT CASE WHEN u_r.deleted_at IS NULL THEN r.user_id END) AS rating_count,
+    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END), 1) AS average_rating,
+    COUNT(DISTINCT CASE WHEN gc.deleted_at IS NULL THEN gc.comment_id END) AS comment_count,
+    COUNT(DISTINCT CASE WHEN u_l.deleted_at IS NULL THEN l.user_id END) AS owner_count
 FROM game g
 LEFT JOIN rating r ON g.game_id = r.game_id
+LEFT JOIN user_account u_r ON r.user_id = u_r.user_id
 LEFT JOIN game_comment gc ON g.game_id = gc.game_id
 LEFT JOIN library l ON g.game_id = l.game_id
+LEFT JOIN user_account u_l ON l.user_id = u_l.user_id
 GROUP BY g.game_id, g.title;
 
 -- Vue : Classement des jeux
@@ -439,6 +445,7 @@ SELECT
     COUNT(r.rating_id) AS rating_count
 FROM game g
 INNER JOIN rating r ON g.game_id = r.game_id
+INNER JOIN user_account u ON r.user_id = u.user_id AND u.deleted_at IS NULL
 GROUP BY g.game_id, g.title, g.cover_image
 HAVING COUNT(r.rating_id) >= 5
 ORDER BY average_rating DESC, rating_count DESC;
@@ -452,7 +459,8 @@ SELECT
     u.avatar AS friend_avatar,
     f.responded_at AS friendship_date
 FROM friendship f
-INNER JOIN user_account u ON f.addressee_user_id = u.user_id
+INNER JOIN user_account u ON f.addressee_user_id = u.user_id AND u.deleted_at IS NULL
+INNER JOIN user_account u_req ON f.requester_user_id = u_req.user_id AND u_req.deleted_at IS NULL
 WHERE f.status = 'accepted'
 UNION
 SELECT
@@ -462,7 +470,8 @@ SELECT
     u.avatar AS friend_avatar,
     f.responded_at AS friendship_date
 FROM friendship f
-INNER JOIN user_account u ON f.requester_user_id = u.user_id
+INNER JOIN user_account u ON f.requester_user_id = u.user_id AND u.deleted_at IS NULL
+INNER JOIN user_account u_addr ON f.addressee_user_id = u_addr.user_id AND u_addr.deleted_at IS NULL
 WHERE f.status = 'accepted';
 
 -- Vue : Bibliothèque enrichie
@@ -478,12 +487,14 @@ SELECT
     l.play_time,
     p.name AS platform,
     r.rating AS my_rating,
-    ROUND(AVG(r2.rating), 1) AS community_average_rating
+    ROUND(AVG(CASE WHEN u_r2.deleted_at IS NULL THEN r2.rating END), 1) AS community_average_rating
 FROM library l
+INNER JOIN user_account u ON l.user_id = u.user_id AND u.deleted_at IS NULL
 INNER JOIN game g ON l.game_id = g.game_id
 LEFT JOIN platform p ON l.owned_platform_id = p.platform_id
 LEFT JOIN rating r ON l.user_id = r.user_id AND l.game_id = r.game_id
 LEFT JOIN rating r2 ON l.game_id = r2.game_id
+LEFT JOIN user_account u_r2 ON r2.user_id = u_r2.user_id
 GROUP BY l.library_id, l.user_id, l.game_id, g.title, g.cover_image,
          l.status, l.added_at, l.play_time, p.name, r.rating;
 
@@ -545,6 +556,86 @@ BEGIN
 
     IF ROW_COUNT() = 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Demande d''amitié introuvable ou déjà traitée';
+    END IF;
+END //
+DELIMITER ;
+
+-- Procédure : Soft delete d'un utilisateur
+DELIMITER //
+CREATE PROCEDURE sp_soft_delete_user(
+    IN p_user_id INT
+)
+BEGIN
+    UPDATE user_account
+    SET deleted_at = CURRENT_TIMESTAMP,
+        is_active = FALSE
+    WHERE user_id = p_user_id
+      AND deleted_at IS NULL;
+
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Utilisateur introuvable ou déjà supprimé';
+    END IF;
+END //
+DELIMITER ;
+
+-- Procédure : Soft delete d'un commentaire
+DELIMITER //
+CREATE PROCEDURE sp_soft_delete_comment(
+    IN p_comment_id INT,
+    IN p_user_id INT
+)
+BEGIN
+    DECLARE v_role VARCHAR(20);
+
+    -- Vérifier le rôle de l'utilisateur
+    SELECT role INTO v_role
+    FROM user_account
+    WHERE user_id = p_user_id AND deleted_at IS NULL;
+
+    -- Supprimer si l'utilisateur est propriétaire ou administrateur
+    UPDATE game_comment
+    SET deleted_at = CURRENT_TIMESTAMP
+    WHERE comment_id = p_comment_id
+      AND (user_id = p_user_id OR v_role = 'administrator')
+      AND deleted_at IS NULL;
+
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Commentaire introuvable, déjà supprimé ou non autorisé';
+    END IF;
+END //
+DELIMITER ;
+
+-- Procédure : Restaurer un utilisateur supprimé
+DELIMITER //
+CREATE PROCEDURE sp_restore_user(
+    IN p_user_id INT
+)
+BEGIN
+    UPDATE user_account
+    SET deleted_at = NULL,
+        is_active = TRUE
+    WHERE user_id = p_user_id
+      AND deleted_at IS NOT NULL;
+
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Utilisateur introuvable ou non supprimé';
+    END IF;
+END //
+DELIMITER ;
+
+-- Procédure : Restaurer un commentaire supprimé
+DELIMITER //
+CREATE PROCEDURE sp_restore_comment(
+    IN p_comment_id INT
+)
+BEGIN
+    UPDATE game_comment
+    SET deleted_at = NULL
+    WHERE comment_id = p_comment_id
+      AND deleted_at IS NOT NULL;
+
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Commentaire introuvable ou non supprimé';
     END IF;
 END //
 DELIMITER ;

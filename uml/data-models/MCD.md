@@ -17,6 +17,7 @@
 - registration_date
 - role (member, administrator)
 - is_active (boolean)
+- deleted_at (soft delete)
 
 ### 2. game
 
@@ -85,6 +86,7 @@
 - content
 - created_at
 - updated_at
+- deleted_at (soft delete)
 
 ### 12. friendship
 

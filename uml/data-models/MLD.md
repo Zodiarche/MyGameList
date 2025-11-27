@@ -18,7 +18,8 @@ USER_ACCOUNT (
     bio TEXT,
     registration_date DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
     role ENUM('member', 'administrator') [NOT NULL, DEFAULT 'member'],
-    is_active BOOLEAN [NOT NULL, DEFAULT TRUE]
+    is_active BOOLEAN [NOT NULL, DEFAULT TRUE],
+    deleted_at DATETIME [DEFAULT NULL]
 )
 ```
 
@@ -28,6 +29,7 @@ USER_ACCOUNT (
 - UNIQUE INDEX idx_username (username)
 - UNIQUE INDEX idx_email (email)
 - INDEX idx_role (role)
+- INDEX idx_deleted_at (deleted_at)
 
 ---
 
@@ -216,7 +218,8 @@ GAME_COMMENT (
     game_id INT [FK -> GAME.game_id, NOT NULL],
     content TEXT [NOT NULL],
     created_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    updated_at DATETIME
+    updated_at DATETIME,
+    deleted_at DATETIME [DEFAULT NULL]
 )
 ```
 
@@ -226,6 +229,7 @@ GAME_COMMENT (
 - INDEX idx_user_game_comment (user_id)
 - INDEX idx_game_game_comment (game_id)
 - INDEX idx_created_at (created_at)
+- INDEX idx_deleted_at (deleted_at)
 - FULLTEXT INDEX idx_fulltext_content (content)
 
 **Constraints:**
