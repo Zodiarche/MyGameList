@@ -21,12 +21,12 @@ Front --> Administrateur: Rediriger vers accueil
 else Administrateur autorise
 Controller -> Controller: Valider parametres\n(page, limit, filter: all/active/inactive)
 Controller -> Model: userModel.countUsers(filter)
-Model -> BDD: SELECT COUNT(*) as total\nFROM user\nWHERE (is_active = ? OR ? IS NULL)
+Model -> BDD: SELECT COUNT(*) as total\nFROM user_account\nWHERE (is_active = ? OR ? IS NULL)
 BDD --> Model: Nombre total
 Model --> Controller: totalResults
 
 Controller -> Model: userModel.getUsers(filter, limit, offset)
-Model -> BDD: SELECT u.user_id, u.username,\nu.email, u.registration_date,\nu.role, u.is_active,\n(SELECT COUNT(*) FROM library WHERE user_id = u.user_id) as game_count,\n(SELECT COUNT(*) FROM comment WHERE user_id = u.user_id) as comment_count\nFROM user u\nWHERE (u.is_active = ? OR ? IS NULL)\nORDER BY u.registration_date DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT u.user_id, u.username,\nu.email, u.registration_date,\nu.role, u.is_active,\n(SELECT COUNT(*) FROM library WHERE user_id = u.user_id) as game_count,\n(SELECT COUNT(*) FROM comment WHERE user_id = u.user_id) as comment_count\nFROM user_account u\nWHERE (u.is_active = ? OR ? IS NULL)\nORDER BY u.registration_date DESC\nLIMIT ? OFFSET ?
 BDD --> Model: Liste utilisateurs avec stats
 Model --> Controller: Utilisateurs
 
@@ -44,7 +44,7 @@ Route -> Controller: adminController.getUserDetail(req, res)
 Controller -> Controller: Verifier authentification\net role administrator
 
 Controller -> Model: userModel.getUserById(user_id)
-Model -> BDD: SELECT * FROM user\nWHERE user_id = ?
+Model -> BDD: SELECT * FROM user_account\nWHERE user_id = ?
 BDD --> Model: Infos utilisateur
 Model --> Controller: Donnees utilisateur
 
@@ -59,7 +59,7 @@ BDD --> Model: Nombre commentaires
 Model --> Controller: Stats commentaires
 
 Controller -> Model: reportModel.getReportsAboutUser(user_id)
-Model -> BDD: SELECT COUNT(*) as report_count\nFROM report\nWHERE content_type = 'user'\nAND content_id = ?
+Model -> BDD: SELECT COUNT(*) as report_count\nFROM report\nWHERE content_type = 'user_account'\nAND content_id = ?
 BDD --> Model: Nombre signalements
 Model --> Controller: Stats signalements
 
@@ -81,7 +81,7 @@ Route --> Front: 400 + message
 Front --> Administrateur: Afficher erreur
 else Utilisateur different
 Controller -> Model: userModel.disableUser(user_id)
-Model -> BDD: UPDATE user\nSET is_active = FALSE\nWHERE user_id = ?
+Model -> BDD: UPDATE user_account\nSET is_active = FALSE\nWHERE user_id = ?
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Compte desactive
 Controller --> Route: 200 + "Compte desactive"
@@ -96,7 +96,7 @@ Route -> Controller: adminController.activateUser(req, res)
 Controller -> Controller: Verifier authentification\net role administrator
 
 Controller -> Model: userModel.activateUser(user_id)
-Model -> BDD: UPDATE user\nSET is_active = TRUE\nWHERE user_id = ?
+Model -> BDD: UPDATE user_account\nSET is_active = TRUE\nWHERE user_id = ?
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Compte reactive
 Controller --> Route: 200 + "Compte reactive"
@@ -117,7 +117,7 @@ Route --> Front: 400 + message
 Front --> Administrateur: Afficher erreur
 else Utilisateur different
 Controller -> Model: userModel.updateRole(user_id, new_role)
-Model -> BDD: UPDATE user\nSET role = ?\nWHERE user_id = ?
+Model -> BDD: UPDATE user_account\nSET role = ?\nWHERE user_id = ?
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Role modifie
 Controller --> Route: 200 + "Role mis a jour"

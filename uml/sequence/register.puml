@@ -20,12 +20,12 @@ Route --> Front: 400 + erreurs de validation
 Front --> Visiteur: Afficher messages d'erreur
 else Données valides
 Controller -> Model: userModel.findByEmail(email)
-Model -> BDD: SELECT * FROM user\nWHERE email = ?
+Model -> BDD: SELECT * FROM user_account\nWHERE email = ?
 BDD --> Model: Résultat recherche email
 Model --> Controller: Utilisateur existant ou null
 
 Controller -> Model: userModel.findByUsername(username)
-Model -> BDD: SELECT * FROM user\nWHERE username = ?
+Model -> BDD: SELECT * FROM user_account\nWHERE username = ?
 BDD --> Model: Résultat recherche username
 Model --> Controller: Utilisateur existant ou null
 
@@ -36,7 +36,7 @@ Front --> Visiteur: Afficher message d'erreur
 else Disponible
 Controller -> Controller: Hasher le mot de passe (bcrypt)
 Controller -> Model: userModel.create(userData)
-Model -> BDD: INSERT INTO user\n(username, email, password, registration_date)\nVALUES (?, ?, ?, NOW())
+Model -> BDD: INSERT INTO user_account\n(username, email, password, registration_date)\nVALUES (?, ?, ?, NOW())
 BDD --> Model: user_id généré
 Model --> Controller: Utilisateur créé
 Controller --> Route: 201 + confirmation

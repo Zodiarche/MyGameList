@@ -25,7 +25,7 @@ else (oui)
       :Compter membres actifs;
       :Compter comptes desactives;
       
-      :Recuperer liste utilisateurs\nSELECT user_id, username,\nemail, role, is_active\nFROM user\nORDER BY created_at DESC\nLIMIT ? OFFSET ?;
+      :Recuperer liste utilisateurs\nSELECT user_id, username,\nemail, role, is_active\nFROM user_account\nORDER BY created_at DESC\nLIMIT ? OFFSET ?;
       
       :Calculer pagination;
       :Renvoyer 200 + liste + stats;
@@ -60,7 +60,7 @@ else (oui)
           :Afficher erreur;
           stop
         else (non)
-          :UPDATE user SET is_active = false;
+          :UPDATE user_account SET is_active = false;
           :Renvoyer 200;
           :Afficher succes;
           stop
@@ -70,7 +70,7 @@ else (oui)
     elseif (Action ?) then (Reactiver compte)
       :Cliquer "Reactiver";
       :Envoyer PATCH /admin/users/:id/activate;
-      :UPDATE user SET is_active = true;
+      :UPDATE user_account SET is_active = true;
       :Renvoyer 200;
       :Afficher succes;
       stop
@@ -87,7 +87,7 @@ else (oui)
         :Afficher erreur;
         stop
       else (non)
-        :UPDATE user SET role = ?;
+        :UPDATE user_account SET role = ?;
         :Renvoyer 200;
         :Afficher succes;
         stop

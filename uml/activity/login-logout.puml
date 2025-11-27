@@ -11,7 +11,7 @@ start
 
 :Controller recoit POST /login;
 
-:Rechercher utilisateur par email\nSELECT user_id, username, email,\npassword, role, is_active\nFROM user WHERE email = ?;
+:Rechercher utilisateur par email\nSELECT user_id, username, email,\npassword, role, is_active\nFROM user_account WHERE email = ?;
 
 if (Utilisateur trouve ?) then (non)
   :Renvoyer 401 "Identifiants invalides";
@@ -32,7 +32,7 @@ else (oui)
     else (oui)
       :Generer token JWT\n(user_id, role, expiration);
 
-      :Renvoyer 200 + token + user data;
+      :Renvoyer 200 + token + user_account data;
 
       :Stocker token JWT;
       :Rediriger vers espace personnel;

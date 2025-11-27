@@ -32,13 +32,13 @@ BDD --> Model: Bibliotheque de l'ami
 Model --> Controller: Liste des jeux
 
 Controller -> Model: userModel.getUserById(target_user_id)
-Model -> BDD: SELECT username, avatar\nFROM user\nWHERE user_id = ?
+Model -> BDD: SELECT username, avatar\nFROM user_account\nWHERE user_id = ?
 BDD --> Model: Infos utilisateur
 Model --> Controller: Nom et avatar
 
 Controller -> Controller: Calculer metadonnees pagination
 
-Controller --> Route: 200 + bibliotheque + user info + pagination
+Controller --> Route: 200 + bibliotheque + user_account info + pagination
 Route --> Front: 200 + donnees
 Front --> Membre: Afficher collection de l'ami\navec statistiques
 end

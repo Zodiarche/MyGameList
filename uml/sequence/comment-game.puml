@@ -27,7 +27,7 @@ BDD --> Model: comment_id genere
 Model --> Controller: Commentaire cree
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
 BDD --> Model: Commentaire complet
 Model --> Controller: Donnees commentaire
 
@@ -46,7 +46,7 @@ BDD --> Model: Nombre total
 Model --> Controller: totalResults
 
 Controller -> Model: commentModel.getGameComments(game_id, limit, offset)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.user_id, u.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.game_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.user_id, u.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.game_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
 BDD --> Model: Liste commentaires
 Model --> Controller: Commentaires pagines
 

@@ -45,7 +45,7 @@ Front -> Route: GET /friendships/pending
 Route -> Controller: friendshipController.getPendingRequests(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
 Controller -> Model: friendshipModel.getPendingRequests(user_id)
-Model -> BDD: SELECT f.friendship_id, f.requested_at,\nu.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user u ON f.requester_user_id = u.user_id\nWHERE f.addressee_user_id = ?\nAND f.status = 'pending'\nORDER BY f.requested_at DESC
+Model -> BDD: SELECT f.friendship_id, f.requested_at,\nu.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user_account u ON f.requester_user_id = u.user_id\nWHERE f.addressee_user_id = ?\nAND f.status = 'pending'\nORDER BY f.requested_at DESC
 BDD --> Model: Liste des demandes
 Model --> Controller: Demandes en attente
 Controller --> Route: 200 + demandes

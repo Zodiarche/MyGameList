@@ -30,9 +30,9 @@ else (oui)
     :Recuperer details du signalement;
     
     if (Type de contenu ?) then (comment)
-      :Recuperer commentaire signale\nSELECT FROM comment\n+ JOIN user, game;
-    else (user)
-      :Recuperer utilisateur signale\nSELECT FROM user;
+      :Recuperer commentaire signale\nSELECT FROM comment\n+ JOIN user_account, game;
+    else (user_account)
+      :Recuperer utilisateur signale\nSELECT FROM user_account;
     endif
     
     :Renvoyer details complets;
@@ -52,7 +52,7 @@ else (oui)
         if (Action ?) then (Supprimer commentaire)
           :Supprimer commentaire\nDELETE FROM comment;
         else (Desactiver utilisateur)
-          :Desactiver compte\nUPDATE user\nSET is_active = FALSE;
+          :Desactiver compte\nUPDATE user_account\nSET is_active = FALSE;
         endif
         
         :Marquer signalement comme traite\nUPDATE report\nSET status = 'processed'\nmoderator_user_id = ?;

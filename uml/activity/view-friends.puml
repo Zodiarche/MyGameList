@@ -16,7 +16,7 @@ else (oui)
   
   :Compter amis\nSELECT COUNT(*)\nWHERE status='accepted';
   
-  :Recuperer liste amis\nSELECT u.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user u\nWHERE status='accepted'\nLIMIT ? OFFSET ?;
+  :Recuperer liste amis\nSELECT u.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user_account u\nWHERE status='accepted'\nLIMIT ? OFFSET ?;
   
   if (Erreur BDD ?) then (oui)
     :Renvoyer 500;

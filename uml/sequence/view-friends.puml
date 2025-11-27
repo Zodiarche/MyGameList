@@ -17,7 +17,7 @@ BDD --> Model: Nombre d'amis
 Model --> Controller: totalResults
 
 Controller -> Model: friendshipModel.getFriends(user_id, limit, offset)
-Model -> BDD: SELECT DISTINCT\nCASE\n  WHEN f.requester_user_id = ? THEN f.addressee_user_id\n  ELSE f.requester_user_id\nEND as friend_user_id,\nu.username, u.avatar, u.bio,\nf.responded_at as friend_since\nFROM friendship f\nJOIN user u ON\n  (f.requester_user_id = ? AND u.user_id = f.addressee_user_id)\n  OR (f.addressee_user_id = ? AND u.user_id = f.requester_user_id)\nWHERE (f.requester_user_id = ? OR f.addressee_user_id = ?)\nAND f.status = 'accepted'\nORDER BY f.responded_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT DISTINCT\nCASE\n  WHEN f.requester_user_id = ? THEN f.addressee_user_id\n  ELSE f.requester_user_id\nEND as friend_user_id,\nu.username, u.avatar, u.bio,\nf.responded_at as friend_since\nFROM friendship f\nJOIN user_account u ON\n  (f.requester_user_id = ? AND u.user_id = f.addressee_user_id)\n  OR (f.addressee_user_id = ? AND u.user_id = f.requester_user_id)\nWHERE (f.requester_user_id = ? OR f.addressee_user_id = ?)\nAND f.status = 'accepted'\nORDER BY f.responded_at DESC\nLIMIT ? OFFSET ?
 BDD --> Model: Liste d'amis avec infos
 Model --> Controller: Liste des amis
 

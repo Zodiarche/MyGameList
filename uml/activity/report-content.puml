@@ -4,7 +4,7 @@ title Diagramme d'activite : Signaler un contenu
 note right
   **Validation content_id**
   Avant insertion, le backend verifie
-  que le contenu existe (comment OU user)
+  que le contenu existe (comment OU user_account)
   selon le content_type. Retourne 404 sinon.
 end note
 

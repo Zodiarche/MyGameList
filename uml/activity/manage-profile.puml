@@ -12,7 +12,7 @@ if (Token valide ?) then (non)
   :Rediriger vers connexion;
   stop
 else (oui)
-  :Recuperer profil utilisateur\nSELECT FROM user WHERE user_id = ?;
+  :Recuperer profil utilisateur\nSELECT FROM user_account WHERE user_id = ?;
   
   :Afficher profil;
   
@@ -34,7 +34,7 @@ else (oui)
         :Afficher erreur;
         stop
       else (non)
-        :Mettre a jour profil\nUPDATE user SET...;
+        :Mettre a jour profil\nUPDATE user_account SET...;
         :Renvoyer 200 + profil;
         :Afficher confirmation;
         stop
@@ -53,7 +53,7 @@ else (oui)
       stop
     else (non)
       :Hasher nouveau mot de passe;
-      :UPDATE user SET password;
+      :UPDATE user_account SET password;
       :Renvoyer 200;
       :Afficher succes;
       stop

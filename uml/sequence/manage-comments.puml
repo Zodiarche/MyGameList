@@ -36,7 +36,7 @@ BDD --> Model: Mise a jour effectuee
 Model --> Controller: Commentaire modifie
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.username, u.avatar\nFROM comment c\nJOIN user u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
 BDD --> Model: Commentaire mis a jour
 Model --> Controller: Nouvelles donnees
 

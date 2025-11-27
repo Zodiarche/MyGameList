@@ -13,7 +13,7 @@ Front -> Route: GET /profile
 Route -> Controller: userController.getProfile(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
 Controller -> Model: userModel.getUserById(user_id)
-Model -> BDD: SELECT user_id, username, email,\navatar, bio, registration_date\nFROM user\nWHERE user_id = ?
+Model -> BDD: SELECT user_id, username, email,\navatar, bio, registration_date\nFROM user_account\nWHERE user_id = ?
 BDD --> Model: Informations utilisateur
 Model --> Controller: Donnees profil
 Controller --> Route: 200 + profil
@@ -30,7 +30,7 @@ Controller -> Controller: Verifier authentification JWT\nExtraire user_id du tok
 Controller -> Controller: Valider donnees\n(username, email, bio, avatar URL)
 
 Controller -> Model: userModel.checkUsernameExists(username, exclude_user_id)
-Model -> BDD: SELECT user_id FROM user\nWHERE username = ?\nAND user_id != ?
+Model -> BDD: SELECT user_id FROM user_account\nWHERE username = ?\nAND user_id != ?
 BDD --> Model: Resultat recherche
 Model --> Controller: Username existant ou null
 
@@ -40,7 +40,7 @@ Route --> Front: 409 + message
 Front --> Membre: Afficher erreur
 else Username disponible
 Controller -> Model: userModel.checkEmailExists(email, exclude_user_id)
-Model -> BDD: SELECT user_id FROM user\nWHERE email = ?\nAND user_id != ?
+Model -> BDD: SELECT user_id FROM user_account\nWHERE email = ?\nAND user_id != ?
 BDD --> Model: Resultat recherche
 Model --> Controller: Email existant ou null
 
@@ -50,7 +50,7 @@ Route --> Front: 409 + message
 Front --> Membre: Afficher erreur
 else Email disponible
 Controller -> Model: userModel.updateProfile(user_id, profileData)
-Model -> BDD: UPDATE user\nSET username = ?, email = ?,\nbio = ?, avatar = ?\nWHERE user_id = ?
+Model -> BDD: UPDATE user_account\nSET username = ?, email = ?,\nbio = ?, avatar = ?\nWHERE user_id = ?
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Profil mis a jour
 Controller --> Route: 200 + profil mis a jour
@@ -67,7 +67,7 @@ Front -> Route: PATCH /profile/password + donnees
 Route -> Controller: userController.changePassword(req, res)
 Controller -> Controller: Verifier authentification JWT
 Controller -> Model: userModel.getUserById(user_id)
-Model -> BDD: SELECT password FROM user\nWHERE user_id = ?
+Model -> BDD: SELECT password FROM user_account\nWHERE user_id = ?
 BDD --> Model: Mot de passe hash actuel
 Model --> Controller: Password hash
 
@@ -80,7 +80,7 @@ Front --> Membre: Afficher erreur
 else Ancien mot de passe correct
 Controller -> Controller: Hasher nouveau mot de passe\nbcrypt.hash()
 Controller -> Model: userModel.updatePassword(user_id, new_password_hash)
-Model -> BDD: UPDATE user\nSET password = ?\nWHERE user_id = ?
+Model -> BDD: UPDATE user_account\nSET password = ?\nWHERE user_id = ?
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Mot de passe change
 Controller --> Route: 200 + confirmation

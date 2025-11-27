@@ -36,7 +36,7 @@ else (oui)
     else (non)
       :Hasher le mot de passe (bcrypt);
       
-      :Créer utilisateur en base de données\nINSERT INTO user;
+      :Créer utilisateur en base de données\nINSERT INTO user_account;
       
       if (Erreur BDD ?) then (oui)
         :Renvoyer 500 + erreur serveur;

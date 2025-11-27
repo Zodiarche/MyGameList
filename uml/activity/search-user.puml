@@ -22,7 +22,7 @@ else (oui)
   
   :Compter utilisateurs\nSELECT COUNT(*)\nWHERE username LIKE ?;
   
-  :Rechercher utilisateurs\nSELECT user_id, username, avatar\nFROM user\nWHERE username LIKE ?\nLIMIT ? OFFSET ?;
+  :Rechercher utilisateurs\nSELECT user_id, username, avatar\nFROM user_account\nWHERE username LIKE ?\nLIMIT ? OFFSET ?;
   
   if (Erreur BDD ?) then (oui)
     :Renvoyer 500;
