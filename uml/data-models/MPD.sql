@@ -139,6 +139,7 @@ CREATE TABLE library (
     INDEX idx_user (user_id),
     INDEX idx_game (game_id),
     INDEX idx_status (status),
+    INDEX idx_owned_platform (owned_platform_id),
     UNIQUE INDEX idx_user_game (user_id, game_id),
 
     CONSTRAINT fk_library_user
@@ -169,6 +170,7 @@ CREATE TABLE rating (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
 
+    INDEX idx_user (user_id),
     INDEX idx_game_rating (game_id),
     INDEX idx_rating_value (rating),
     UNIQUE INDEX idx_user_game_rating (user_id, game_id),
@@ -200,8 +202,8 @@ CREATE TABLE game_comment (
     updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     deleted_at DATETIME DEFAULT NULL COMMENT 'Date de suppression (soft delete)',
 
-    INDEX idx_user_game_comment (user_id),
-    INDEX idx_game_game_comment (game_id),
+    INDEX idx_user (user_id),
+    INDEX idx_game (game_id),
     INDEX idx_created_at (created_at DESC),
     INDEX idx_deleted_at (deleted_at),
     FULLTEXT idx_fulltext_content (content),
@@ -265,9 +267,9 @@ CREATE TABLE report (
     moderator_user_id INT DEFAULT NULL COMMENT 'Administrateur ayant traité le signalement',
 
     INDEX idx_reporter (reporter_user_id),
+    INDEX idx_moderator (moderator_user_id),
     INDEX idx_content_type (content_type, content_id),
     INDEX idx_status_report (status),
-    INDEX idx_moderator (moderator_user_id),
     INDEX idx_reported_at (reported_at DESC),
 
     CONSTRAINT fk_report_reporter
@@ -291,7 +293,8 @@ CREATE TABLE game_platform (
     platform_release_date DATE DEFAULT NULL COMMENT 'Date de sortie spécifique à cette plateforme',
 
     PRIMARY KEY (game_id, platform_id),
-    INDEX idx_platform_game (platform_id),
+    INDEX idx_game (game_id),
+    INDEX idx_platform (platform_id),
 
     CONSTRAINT fk_game_platform_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -313,7 +316,8 @@ CREATE TABLE game_genre (
     genre_id INT NOT NULL,
 
     PRIMARY KEY (game_id, genre_id),
-    INDEX idx_genre_game (genre_id),
+    INDEX idx_game (game_id),
+    INDEX idx_genre (genre_id),
 
     CONSTRAINT fk_game_genre_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -335,7 +339,8 @@ CREATE TABLE game_tag (
     tag_id INT NOT NULL,
 
     PRIMARY KEY (game_id, tag_id),
-    INDEX idx_tag_game (tag_id),
+    INDEX idx_game (game_id),
+    INDEX idx_tag (tag_id),
 
     CONSTRAINT fk_game_tag_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -357,7 +362,8 @@ CREATE TABLE game_developer (
     developer_id INT NOT NULL,
 
     PRIMARY KEY (game_id, developer_id),
-    INDEX idx_developer_game (developer_id),
+    INDEX idx_game (game_id),
+    INDEX idx_developer (developer_id),
 
     CONSTRAINT fk_game_developer_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -379,7 +385,8 @@ CREATE TABLE game_store (
     store_id INT NOT NULL,
 
     PRIMARY KEY (game_id, store_id),
-    INDEX idx_store_game (store_id),
+    INDEX idx_game (game_id),
+    INDEX idx_store (store_id),
 
     CONSTRAINT fk_game_store_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -401,7 +408,8 @@ CREATE TABLE game_publisher (
     publisher_id INT NOT NULL,
 
     PRIMARY KEY (game_id, publisher_id),
-    INDEX idx_publisher_game (publisher_id),
+    INDEX idx_game (game_id),
+    INDEX idx_publisher (publisher_id),
 
     CONSTRAINT fk_game_publisher_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -512,8 +520,8 @@ SELECT
     -- Plateformes (agrégées en JSON)
     COALESCE(
         JSON_ARRAYAGG(
-            DISTINCT CASE 
-                WHEN p.platform_id IS NOT NULL 
+            DISTINCT CASE
+                WHEN p.platform_id IS NOT NULL
                 THEN JSON_OBJECT('platform_id', p.platform_id, 'name', p.name)
                 ELSE NULL
             END
@@ -523,8 +531,8 @@ SELECT
     -- Genres (agrégés en JSON)
     COALESCE(
         JSON_ARRAYAGG(
-            DISTINCT CASE 
-                WHEN gen.genre_id IS NOT NULL 
+            DISTINCT CASE
+                WHEN gen.genre_id IS NOT NULL
                 THEN JSON_OBJECT('genre_id', gen.genre_id, 'name', gen.name)
                 ELSE NULL
             END
@@ -534,8 +542,8 @@ SELECT
     -- Tags (agrégés en JSON)
     COALESCE(
         JSON_ARRAYAGG(
-            DISTINCT CASE 
-                WHEN t.tag_id IS NOT NULL 
+            DISTINCT CASE
+                WHEN t.tag_id IS NOT NULL
                 THEN JSON_OBJECT('tag_id', t.tag_id, 'name', t.name)
                 ELSE NULL
             END
@@ -545,8 +553,8 @@ SELECT
     -- Développeurs (agrégés en JSON)
     COALESCE(
         JSON_ARRAYAGG(
-            DISTINCT CASE 
-                WHEN d.developer_id IS NOT NULL 
+            DISTINCT CASE
+                WHEN d.developer_id IS NOT NULL
                 THEN JSON_OBJECT('developer_id', d.developer_id, 'name', d.name)
                 ELSE NULL
             END
@@ -556,8 +564,8 @@ SELECT
     -- Éditeurs (agrégés en JSON)
     COALESCE(
         JSON_ARRAYAGG(
-            DISTINCT CASE 
-                WHEN pub.publisher_id IS NOT NULL 
+            DISTINCT CASE
+                WHEN pub.publisher_id IS NOT NULL
                 THEN JSON_OBJECT('publisher_id', pub.publisher_id, 'name', pub.name)
                 ELSE NULL
             END
@@ -776,10 +784,10 @@ DELIMITER ;
 -- Index composite pour les requêtes de bibliothèque par statut
 CREATE INDEX idx_library_user_status ON library(user_id, status);
 
--- Index pour les commentaires récents
+-- Index pour les commentaires récents par jeu
 CREATE INDEX idx_game_comment_game_date ON game_comment(game_id, created_at DESC);
 
-
+-- Index pour les demandes d'amitié par statut
 CREATE INDEX idx_friendship_requester_status ON friendship(requester_user_id, status);
 CREATE INDEX idx_friendship_addressee_status ON friendship(addressee_user_id, status);
 
