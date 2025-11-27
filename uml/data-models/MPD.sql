@@ -498,6 +498,100 @@ LEFT JOIN user_account u_r2 ON r2.user_id = u_r2.user_id
 GROUP BY l.library_id, l.user_id, l.game_id, g.title, g.cover_image,
          l.status, l.added_at, l.play_time, p.name, r.rating;
 
+-- Vue : Détails complets d'un jeu (optimisation N+1)
+-- Cette vue regroupe toutes les informations d'un jeu en une seule requête
+-- pour éviter les 6-8 requêtes séquentielles lors de la consultation d'une fiche jeu
+CREATE OR REPLACE VIEW view_game_complete_details AS
+SELECT
+    g.game_id,
+    g.title,
+    g.cover_image,
+    g.release_date,
+    g.metacritic,
+    g.website,
+    -- Plateformes (agrégées en JSON)
+    COALESCE(
+        JSON_ARRAYAGG(
+            DISTINCT CASE 
+                WHEN p.platform_id IS NOT NULL 
+                THEN JSON_OBJECT('platform_id', p.platform_id, 'name', p.name)
+                ELSE NULL
+            END
+        ),
+        JSON_ARRAY()
+    ) AS platforms,
+    -- Genres (agrégés en JSON)
+    COALESCE(
+        JSON_ARRAYAGG(
+            DISTINCT CASE 
+                WHEN gen.genre_id IS NOT NULL 
+                THEN JSON_OBJECT('genre_id', gen.genre_id, 'name', gen.name)
+                ELSE NULL
+            END
+        ),
+        JSON_ARRAY()
+    ) AS genres,
+    -- Tags (agrégés en JSON)
+    COALESCE(
+        JSON_ARRAYAGG(
+            DISTINCT CASE 
+                WHEN t.tag_id IS NOT NULL 
+                THEN JSON_OBJECT('tag_id', t.tag_id, 'name', t.name)
+                ELSE NULL
+            END
+        ),
+        JSON_ARRAY()
+    ) AS tags,
+    -- Développeurs (agrégés en JSON)
+    COALESCE(
+        JSON_ARRAYAGG(
+            DISTINCT CASE 
+                WHEN d.developer_id IS NOT NULL 
+                THEN JSON_OBJECT('developer_id', d.developer_id, 'name', d.name)
+                ELSE NULL
+            END
+        ),
+        JSON_ARRAY()
+    ) AS developers,
+    -- Éditeurs (agrégés en JSON)
+    COALESCE(
+        JSON_ARRAYAGG(
+            DISTINCT CASE 
+                WHEN pub.publisher_id IS NOT NULL 
+                THEN JSON_OBJECT('publisher_id', pub.publisher_id, 'name', pub.name)
+                ELSE NULL
+            END
+        ),
+        JSON_ARRAY()
+    ) AS publishers,
+    -- Statistiques de notation
+    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END), 1) AS average_rating,
+    COUNT(DISTINCT CASE WHEN u_r.deleted_at IS NULL THEN r.rating_id END) AS rating_count,
+    -- Nombre de commentaires
+    COUNT(DISTINCT CASE WHEN gc.deleted_at IS NULL THEN gc.comment_id END) AS comment_count
+FROM game g
+-- Plateformes
+LEFT JOIN game_platform gp ON g.game_id = gp.game_id
+LEFT JOIN platform p ON gp.platform_id = p.platform_id
+-- Genres
+LEFT JOIN game_genre gg ON g.game_id = gg.game_id
+LEFT JOIN genre gen ON gg.genre_id = gen.genre_id
+-- Tags
+LEFT JOIN game_tag gt ON g.game_id = gt.game_id
+LEFT JOIN tag t ON gt.tag_id = t.tag_id
+-- Développeurs
+LEFT JOIN game_developer gd ON g.game_id = gd.game_id
+LEFT JOIN developer d ON gd.developer_id = d.developer_id
+-- Éditeurs
+LEFT JOIN game_publisher gpr ON g.game_id = gpr.game_id
+LEFT JOIN publisher pub ON gpr.publisher_id = pub.publisher_id
+-- Ratings
+LEFT JOIN rating r ON g.game_id = r.game_id
+LEFT JOIN user_account u_r ON r.user_id = u_r.user_id
+-- Commentaires
+LEFT JOIN game_comment gc ON g.game_id = gc.game_id
+GROUP BY g.game_id, g.title, g.cover_image, g.release_date, g.metacritic, g.website;
+
 -- ============================================
 -- PROCÉDURES STOCKÉES
 -- ============================================

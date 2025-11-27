@@ -7,30 +7,31 @@ start
 
 :Envoyer GET /games/:game_id;
 
-:Recuperer informations jeu\nSELECT FROM game WHERE game_id = ?;
+note right
+  Optimisation N+1: Une seule requête
+  via view_game_complete_details
+  au lieu de 6 requêtes séquentielles
+end note
+
+:Recuperer fiche complete du jeu\nSELECT * FROM view_game_complete_details\nWHERE game_id = ?;
+
+note right
+  La vue regroupe en 1 requête:
+  • Infos jeu (titre, cover, etc.)
+  • Plateformes (JSON array)
+  • Genres (JSON array)
+  • Tags (JSON array)
+  • Développeurs (JSON array)
+  • Éditeurs (JSON array)
+  • Statistiques (avg_rating, count)
+end note
 
 if (Jeu trouve ?) then (non)
   :Renvoyer 404;
   :Afficher erreur 404;
   stop
 else (oui)
-  partition "Recuperer donnees complementaires" {
-    fork
-      :Recuperer plateformes\nJOIN game_platform;
-    fork again
-      :Recuperer genres\nJOIN game_genre;
-    fork again
-      :Recuperer tags\nJOIN game_tag;
-    fork again
-      :Recuperer developpeurs\nJOIN game_developer;
-    fork again
-      :Recuperer editeurs\nJOIN game_publisher;
-    fork again
-      :Recuperer note moyenne\nAVG(rating);
-    fork again
-      :Recuperer derniers commentaires\nLIMIT 5;
-    end fork
-  }
+  :Recuperer derniers commentaires\nSELECT FROM game_comment\nJOIN user_account\nWHERE game_id = ?\nORDER BY created_at DESC\nLIMIT 5;
   
   :Renvoyer 200 + fiche complete;
   :Afficher fiche du jeu;
