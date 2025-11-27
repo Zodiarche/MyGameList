@@ -594,7 +594,8 @@ CREATE INDEX idx_library_user_status ON library(user_id, status);
 -- Index pour les commentaires récents
 CREATE INDEX idx_game_comment_game_date ON game_comment(game_id, created_at DESC);
 
--- Index pour les demandes d'amitié en attente
+
+CREATE INDEX idx_friendship_requester_status ON friendship(requester_user_id, status);
 CREATE INDEX idx_friendship_addressee_status ON friendship(addressee_user_id, status);
 
 -- ============================================
