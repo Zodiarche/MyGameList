@@ -48,6 +48,6 @@ docker compose -f docker-compose.dev.yml down -v
 3. **Connection** :
    - Host : `postgres`
    - Port : `5432`
-   - Database : `mygamelist_dev`
+   - Database : `mygamelist`
    - Username : `dev_user`
    - Password : `dev_password`

@@ -26,7 +26,12 @@ BDD --> Model: Nombre total de signalements
 Model --> Controller: totalResults
 
 Controller -> Model: reportModel.getReports(status, limit, offset)
-Model -> BDD: SELECT r.report_id, r.content_type,\nr.content_id, r.reason, r.description,\nr.reported_at, r.status,\nu_reporter.username as reporter_username,\nu_reporter.user_id as reporter_id\nFROM report r\nJOIN user_account u_reporter ON r.reporter_user_id = u_reporter.user_id\nWHERE r.status = ?\nORDER BY r.reported_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT report_id, content_type,\ncontent_id, reason, description,\nreported_at, status,\nreporter_username, reporter_email,\nmoderator_username\nFROM view_report_with_details\nWHERE status = ?\nORDER BY reported_at DESC\nLIMIT ? OFFSET ?
+note right of BDD
+  Vue view_report_with_details
+  Inclut automatiquement les infos
+  du reporter et du modérateur
+end note
 BDD --> Model: Liste paginée de signalements
 Model --> Controller: Signalements avec infos
 
@@ -42,13 +47,17 @@ Front -> Route: GET /admin/reports/:report_id
 Route -> Controller: adminController.getReportDetail(req, res)
 Controller -> Controller: Vérifier authentification JWT\net role administrator
 Controller -> Model: reportModel.getReportById(report_id)
-Model -> BDD: SELECT r.*, u_reporter.username as reporter_username\nFROM report r\nJOIN user_account u_reporter ON r.reporter_user_id = u_reporter.user_id\nWHERE r.report_id = ?
+Model -> BDD: SELECT * FROM view_report_with_details\nWHERE report_id = ?
+note right of BDD
+  Vue complète avec toutes les infos
+  reporter, modérateur, contenu
+end note
 BDD --> Model: Détails du signalement
 Model --> Controller: Informations signalement
 
 alt Signalement concerne un commentaire
 Controller -> Model: commentModel.getCommentById(content_id)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.game_id,\nu.username as author_username,\nu.user_id as author_id,\ng.title as game_title\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nJOIN game g ON c.game_id = g.game_id\nWHERE c.comment_id = ?
+Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.game_id,\nu.username as author_username,\nu.user_id as author_id,\ng.title as game_title\nFROM game_comment c\nJOIN user_account u ON c.user_id = u.user_id\nJOIN game g ON c.game_id = g.game_id\nWHERE c.comment_id = ?\n  AND c.deleted_at IS NULL\n  AND u.deleted_at IS NULL
 BDD --> Model: Commentaire signalé
 Model --> Controller: Détails du commentaire
 else Signalement concerne un utilisateur
@@ -81,7 +90,7 @@ Front --> Administrateur: Afficher erreur
 else Signalement en attente
 alt Action: Supprimer le commentaire
 Controller -> Model: commentModel.deleteComment(content_id)
-Model -> BDD: DELETE FROM comment\nWHERE comment_id = ?
+Model -> BDD: UPDATE game_comment\nSET deleted_at = NOW()\nWHERE comment_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Commentaire supprimé
 Model --> Controller: Suppression effectuée
 else Action: Désactiver le compte utilisateur

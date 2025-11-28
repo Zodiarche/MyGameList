@@ -45,7 +45,12 @@ Front -> Route: GET /friendships/pending
 Route -> Controller: friendshipController.getPendingRequests(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
 Controller -> Model: friendshipModel.getPendingRequests(user_id)
-Model -> BDD: SELECT f.friendship_id, f.requested_at,\nu.user_id, u.username, u.avatar\nFROM friendship f\nJOIN user_account u ON f.requester_user_id = u.user_id\nWHERE f.addressee_user_id = ?\nAND f.status = 'pending'\nORDER BY f.requested_at DESC
+Model -> BDD: SELECT friendship_id, requested_at,\nrequester_user_id, requester_username,\nrequester_avatar, requester_bio\nFROM view_friendship_pending_requests\nWHERE addressee_user_id = ?\nORDER BY requested_at DESC
+note right of BDD
+  Vue view_friendship_pending_requests
+  Filtre automatiquement status='pending'
+  et les utilisateurs supprimés
+end note
 BDD --> Model: Liste des demandes
 Model --> Controller: Demandes en attente
 Controller --> Route: 200 + demandes
@@ -72,7 +77,12 @@ Route --> Front: 400 + message
 Front --> Membre: Afficher erreur
 else Utilisateur autorise et demande en attente
 Controller -> Model: friendshipModel.updateStatus(friendship_id, 'accepted')
-Model -> BDD: UPDATE friendship\nSET status = 'accepted',\nresponded_at = NOW()\nWHERE friendship_id = ?
+Model -> BDD: UPDATE friendship\nSET status = 'accepted'\nWHERE friendship_id = ?
+note right of BDD
+  Le trigger trg_auto_set_responded_at
+  définit automatiquement responded_at
+  lors du changement de status
+end note
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Demande acceptee
 Controller --> Route: 200 + confirmation
@@ -92,7 +102,10 @@ Model --> Controller: Informations demande
 
 alt Utilisateur autorise
 Controller -> Model: friendshipModel.updateStatus(friendship_id, 'rejected')
-Model -> BDD: UPDATE friendship\nSET status = 'rejected',\nresponded_at = NOW()\nWHERE friendship_id = ?
+Model -> BDD: UPDATE friendship\nSET status = 'rejected'\nWHERE friendship_id = ?
+note right of BDD
+  Trigger automatique pour responded_at
+end note
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Demande refusee
 Controller --> Route: 200 + confirmation

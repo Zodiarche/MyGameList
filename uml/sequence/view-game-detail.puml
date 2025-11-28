@@ -38,7 +38,11 @@ Route --> Front: 404 + message
 Front --> Visiteur: Afficher erreur 404
 else Jeu trouve
 Controller -> Model: commentModel.getGameComments(game_id, limit: 5)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM game_comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.game_id = ? AND c.deleted_at IS NULL\nORDER BY c.created_at DESC\nLIMIT 5
+Model -> BDD: SELECT comment_id, content,\ncreated_at, author_username, author_avatar\nFROM view_comment_with_author\nWHERE game_id = ?\nORDER BY created_at DESC\nLIMIT 5
+note right of BDD
+  Vue view_comment_with_author
+  filtre automatiquement les soft deletes
+end note
 BDD --> Model: Derniers commentaires
 Model --> Controller: Liste commentaires
 

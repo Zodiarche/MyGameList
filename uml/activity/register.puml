@@ -20,14 +20,14 @@ if (Données valides ?) then (non)
   :Afficher messages d'erreur;
   stop
 else (oui)
-  :Rechercher email en base de données;
+  :Rechercher email en base de données\nSELECT FROM user_account\nWHERE email = ? AND deleted_at IS NULL;
   
   if (Email existe déjà ?) then (oui)
     :Renvoyer 409 + "Email existant";
     :Afficher erreur email déjà utilisé;
     stop
   else (non)
-    :Rechercher username en base de données;
+    :Rechercher username en base de données\nSELECT FROM user_account\nWHERE username = ? AND deleted_at IS NULL;
     
     if (Username existe déjà ?) then (oui)
       :Renvoyer 409 + "Pseudo existant";

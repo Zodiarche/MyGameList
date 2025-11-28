@@ -1,0 +1,53 @@
+@startuml Feature_ConsulterStatsLibrary_Sequence
+title Feature: Consulter ses statistiques de bibliothèque (séquence)
+actor Membre
+participant "Front Web" as Front
+participant "Route" as Route
+participant "Controller" as Controller
+participant "Model" as Model
+database "Base de données" as BDD
+
+Membre -> Front: Accéder à "Ma bibliothèque"
+Front -> Route: GET /profile/library/stats
+Route -> Controller: libraryController.getLibraryStats(req, res)
+Controller -> Controller: Vérifier authentification JWT\nExtraire user_id du token
+
+Controller -> Model: libraryModel.getUserLibraryStats(user_id)
+Model -> BDD: SELECT total_games,\nto_play_count, playing_count,\ncompleted_count, abandoned_count,\ntotal_play_time\nFROM view_user_library_stats\nWHERE user_id = ?
+note right of BDD
+  Vue view_user_library_stats
+  Pré-calcule toutes les statistiques:
+  - Nombre total de jeux
+  - Répartition par statut
+  - Temps de jeu total
+end note
+BDD --> Model: Statistiques complètes
+Model --> Controller: Stats bibliothèque
+
+alt Utilisateur a des jeux
+Controller --> Route: 200 + stats
+Route --> Front: 200 + données
+Front --> Membre: Afficher dashboard statistiques\n(graphiques, progression, temps total)
+else Utilisateur sans jeux
+Controller --> Route: 200 + stats vides
+note right
+  {
+    total_games: 0,
+    to_play_count: 0,
+    playing_count: 0,
+    completed_count: 0,
+    abandoned_count: 0,
+    total_play_time: 0
+  }
+end note
+Route --> Front: 200 + données vides
+Front --> Membre: Afficher message\n"Votre bibliothèque est vide"
+end
+
+alt Erreur BDD
+Model --> Controller: Erreur BDD
+Controller --> Route: 500 + message
+Route --> Front: 500 + message
+Front --> Membre: Afficher message d'erreur
+end
+@enduml

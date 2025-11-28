@@ -61,7 +61,7 @@ services:
       # Database
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=mygamelist_dev
+      - DB_NAME=mygamelist
       - DB_USER=dev_user
       - DB_PASSWORD=dev_password
       # Redis

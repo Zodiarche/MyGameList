@@ -22,12 +22,17 @@ Route --> Front: 400 + message
 Front --> Membre: Afficher erreur
 else Contenu valide
 Controller -> Model: commentModel.createComment(user_id, game_id, content)
-Model -> BDD: INSERT INTO comment\n(user_id, game_id, content, created_at)\nVALUES (?, ?, ?, NOW())
+Model -> BDD: INSERT INTO game_comment\n(user_id, game_id, content, created_at)\nVALUES (?, ?, ?, NOW())
 BDD --> Model: comment_id genere
 Model --> Controller: Commentaire cree
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, u.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+Model -> BDD: SELECT comment_id, content, created_at,\nauthor_username, author_avatar,\ngame_title, game_slug\nFROM view_comment_with_author\nWHERE comment_id = ?
+note right of BDD
+  Utilisation de view_comment_with_author
+  Simplifie les JOIN et filtre automatiquement
+  les commentaires/utilisateurs supprimés
+end note
 BDD --> Model: Commentaire complet
 Model --> Controller: Donnees commentaire
 
@@ -41,12 +46,16 @@ Membre -> Front: Scroller vers section commentaires
 Front -> Route: GET /games/:game_id/comments?page=1&limit=10
 Route -> Controller: commentController.getGameComments(req, res)
 Controller -> Model: commentModel.countGameComments(game_id)
-Model -> BDD: SELECT COUNT(*) as total\nFROM comment\nWHERE game_id = ?
+Model -> BDD: SELECT COUNT(*) as total\nFROM game_comment\nWHERE game_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Nombre total
 Model --> Controller: totalResults
 
 Controller -> Model: commentModel.getGameComments(game_id, limit, offset)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.user_id, u.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.game_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT comment_id, content, created_at,\nupdated_at, user_id,\nauthor_username, author_avatar\nFROM view_comment_with_author\nWHERE game_id = ?\nORDER BY created_at DESC\nLIMIT ? OFFSET ?
+note right of BDD
+  Vue optimisée avec filtrage automatique
+  des soft deletes
+end note
 BDD --> Model: Liste commentaires
 Model --> Controller: Commentaires pagines
 

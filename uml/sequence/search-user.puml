@@ -15,12 +15,12 @@ Route -> Controller: userController.searchUsers(req, res)
 Controller -> Controller: Verifier authentification JWT
 Controller -> Controller: Valider parametres\n(query, page, limit)
 Controller -> Model: userModel.countSearchResults(query)
-Model -> BDD: SELECT COUNT(*) as total\nFROM user_account\nWHERE username LIKE ?\nAND is_active = TRUE
+Model -> BDD: SELECT COUNT(*) as total\nFROM user_account\nWHERE username LIKE ?\n  AND is_active = TRUE\n  AND deleted_at IS NULL
 BDD --> Model: Nombre total de resultats
 Model --> Controller: totalResults
 
 Controller -> Model: userModel.searchUsers(query, limit, offset)
-Model -> BDD: SELECT u.user_id, u.username,\nu.avatar, u.bio\nFROM user_account u\nWHERE u.username LIKE ?\nAND u.is_active = TRUE\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT u.user_id, u.username,\nu.avatar, u.bio\nFROM user_account u\nWHERE u.username LIKE ?\n  AND u.is_active = TRUE\n  AND u.deleted_at IS NULL\nLIMIT ? OFFSET ?
 BDD --> Model: Liste d'utilisateurs
 Model --> Controller: Resultats recherche
 

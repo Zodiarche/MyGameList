@@ -22,7 +22,7 @@ Model -> DB : SELECT COUNT(*)\nFROM library\nWHERE user_id = ?\nAND (status = ? 
 DB --> Model : totalGames
 
 Controller -> Model : getLibraryWithGames(userId, page, limit, status)
-Model -> DB : SELECT l.library_id, l.status, l.play_time,\nl.completion, g.game_id, g.title,\ng.cover_image, g.release_date\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nWHERE l.user_id = ?\nAND (l.status = ? OR ? IS NULL)\nORDER BY l.added_at DESC\nLIMIT ? OFFSET ?
+Model -> DB : SELECT library_id, game_id, title,\ncover_image, status, play_time,\nplatform, my_rating,\ncommunity_average_rating\nFROM view_enriched_library\nWHERE user_id = ?\nAND (status = ? OR ? IS NULL)\nORDER BY added_at DESC\nLIMIT ? OFFSET ?\nnote right of DB\n  Vue view_enriched_library inclut:\n  - Infos du jeu\n  - Plateforme possédée\n  - Note personnelle\n  - Moyenne communauté\nend note
 DB --> Model : games[]
 
 Model --> Controller : { totalGames, games[] }

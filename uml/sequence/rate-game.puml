@@ -29,7 +29,12 @@ Route --> Front: 200 + confirmation
 Front --> Membre: Afficher "Note enregistree"
 
 Controller -> Model: ratingModel.getGameAverageRating(game_id)
-Model -> BDD: SELECT AVG(rating) as avg_rating,\nCOUNT(rating_id) as rating_count\nFROM rating\nWHERE game_id = ?
+Model -> BDD: SELECT average_rating, rating_count\nFROM view_game_statistics\nWHERE game_id = ?
+note right of BDD
+  Utilisation de la vue view_game_statistics
+  pour éviter de recalculer AVG et COUNT
+  Performance optimisée
+end note
 BDD --> Model: Nouvelle moyenne
 Model --> Controller: Statistiques mises a jour
 Controller --> Route: Inclure nouvelle moyenne

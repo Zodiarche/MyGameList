@@ -11,14 +11,14 @@ start
 
 :Controller recoit POST /login;
 
-:Rechercher utilisateur par email\nSELECT user_id, username, email,\npassword, role, is_active\nFROM user_account WHERE email = ?;
+:Rechercher utilisateur par email\nSELECT user_id, username, email,\npassword, role, is_active\nFROM user_account\nWHERE email = ? AND deleted_at IS NULL;
 
 if (Utilisateur trouve ?) then (non)
   :Renvoyer 401 "Identifiants invalides";
   :Afficher erreur;
   stop
 else (oui)
-  if (Compte actif ?) then (non)
+  if (Compte actif (is_active) ?) then (non)
     :Renvoyer 403 "compte desactive";
     :Afficher message de blocage;
     stop
@@ -34,23 +34,35 @@ else (oui)
 
       :Renvoyer 200 + token + user_account data;
 
-      :Stocker token JWT;
+      :Stocker token JWT cote client;
       :Rediriger vers espace personnel;
-
-      :Membre clique sur "Se deconnecter";
-
-      :Controller recoit POST /logout + token;
-
-      :Invalider token\n(blacklist ou suppression session);
-
-      :Renvoyer 204 No Content;
-
-      :Supprimer token local;
-      :Rediriger vers page d'accueil;
 
       stop
     endif
   endif
 endif
+
+@enduml
+
+@startuml Activity_Deconnexion
+title Diagramme d'activite : Se deconnecter
+
+start
+
+:Membre clique sur "Se deconnecter";
+
+:Front envoie POST /logout + token JWT;
+
+:Controller recoit la demande;
+
+:Supprimer token cote client\n(localStorage ou cookie);
+
+:Renvoyer 204 No Content;
+
+:Supprimer token local;
+
+:Rediriger vers page d'accueil;
+
+stop
 
 @enduml

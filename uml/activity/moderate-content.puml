@@ -13,72 +13,72 @@ if (Token valide ?) then (non)
   stop
 else (oui)
   :Verifier role = 'administrator';
-  
+
   if (Administrateur ?) then (non)
     :Renvoyer 403 Forbidden;
     :Rediriger vers accueil;
     stop
   else (oui)
     :Recuperer signalements en attente\nSELECT FROM report\nWHERE status = 'pending';
-    
+
     :Renvoyer liste paginee;
-    
+
     :Afficher liste des signalements;
-    
+
     :Administrateur selectionne un signalement;
-    
+
     :Recuperer details du signalement;
-    
-    if (Type de contenu ?) then (comment)
-      :Recuperer commentaire signale\nSELECT FROM comment\n+ JOIN user_account, game;
+
+    if (Type de contenu ?) then (game_comment)
+      :Recuperer commentaire signale\nSELECT FROM game_comment\n+ JOIN user_account, game;
     else (user_account)
       :Recuperer utilisateur signale\nSELECT FROM user_account;
     endif
-    
+
     :Renvoyer details complets;
-    
+
     :Afficher contenu signale\n+ raison + description;
-    
+
     if (Decision ?) then (Approuver)
       :Administrateur choisit action\n(supprimer contenu\nou desactiver compte);
-      
+
       :Verifier signalement non traite;
-      
+
       if (Deja traite ?) then (oui)
         :Renvoyer 400 "Deja traite";
         :Afficher erreur;
         stop
       else (non)
         if (Action ?) then (Supprimer commentaire)
-          :Supprimer commentaire\nDELETE FROM comment;
+          :Supprimer commentaire\nDELETE FROM game_comment;
         else (Desactiver utilisateur)
           :Desactiver compte\nUPDATE user_account\nSET is_active = FALSE;
         endif
-        
+
         :Marquer signalement comme traite\nUPDATE report\nSET status = 'processed'\nmoderator_user_id = ?;
-        
+
         :Renvoyer 200 + confirmation;
-        
+
         :Afficher succes\n+ retirer de la liste;
         stop
       endif
-      
+
     elseif (Decision ?) then (Rejeter)
       :Verifier signalement non traite;
-      
+
       if (Deja traite ?) then (oui)
         :Renvoyer 400 "Deja traite";
         :Afficher erreur;
         stop
       else (non)
         :Marquer signalement comme rejete\nUPDATE report\nSET status = 'rejected'\nmoderator_user_id = ?;
-        
+
         :Renvoyer 200 + confirmation;
-        
+
         :Afficher confirmation\n+ retirer de la liste;
         stop
       endif
-      
+
     else (Reporter la decision)
       :Revenir a la liste;
       stop

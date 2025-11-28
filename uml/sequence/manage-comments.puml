@@ -17,7 +17,7 @@ Controller -> Controller: Verifier authentification JWT\nExtraire user_id du tok
 Controller -> Controller: Valider contenu
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT user_id, game_id, content\nFROM comment\nWHERE comment_id = ?
+Model -> BDD: SELECT user_id, game_id, content\nFROM game_comment\nWHERE comment_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Informations commentaire
 Model --> Controller: Donnees commentaire
 
@@ -31,12 +31,12 @@ Route --> Front: 403 + message
 Front --> Membre: Afficher erreur
 else Utilisateur proprietaire
 Controller -> Model: commentModel.updateComment(comment_id, new_content)
-Model -> BDD: UPDATE comment\nSET content = ?, updated_at = NOW()\nWHERE comment_id = ?
+Model -> BDD: UPDATE game_comment\nSET content = ?, updated_at = NOW()\nWHERE comment_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Mise a jour effectuee
 Model --> Controller: Commentaire modifie
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\nu.username, u.avatar\nFROM comment c\nJOIN user_account u ON c.user_id = u.user_id\nWHERE c.comment_id = ?
+Model -> BDD: SELECT comment_id, content,\ncreated_at, updated_at,\nauthor_username, author_avatar\nFROM view_comment_with_author\nWHERE comment_id = ?
 BDD --> Model: Commentaire mis a jour
 Model --> Controller: Nouvelles donnees
 
@@ -54,7 +54,7 @@ Route -> Controller: commentController.deleteComment(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
 
 Controller -> Model: commentModel.getCommentById(comment_id)
-Model -> BDD: SELECT user_id FROM comment\nWHERE comment_id = ?
+Model -> BDD: SELECT user_id FROM game_comment\nWHERE comment_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Proprietaire du commentaire
 Model --> Controller: user_id
 
@@ -68,7 +68,7 @@ Route --> Front: 403 + message
 Front --> Membre: Afficher erreur
 else Utilisateur proprietaire
 Controller -> Model: commentModel.deleteComment(comment_id)
-Model -> BDD: DELETE FROM comment\nWHERE comment_id = ?
+Model -> BDD: UPDATE game_comment\nSET deleted_at = NOW()\nWHERE comment_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Suppression effectuee
 Model --> Controller: Commentaire supprime
 
@@ -84,12 +84,15 @@ Route -> Controller: commentController.getUserComments(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire user_id du token
 
 Controller -> Model: commentModel.countUserComments(user_id)
-Model -> BDD: SELECT COUNT(*) as total\nFROM comment\nWHERE user_id = ?
+Model -> BDD: SELECT COUNT(*) as total\nFROM game_comment\nWHERE user_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Nombre total
 Model --> Controller: totalResults
 
 Controller -> Model: commentModel.getUserComments(user_id, limit, offset)
-Model -> BDD: SELECT c.comment_id, c.content,\nc.created_at, c.updated_at,\ng.game_id, g.title, g.cover_image\nFROM comment c\nJOIN game g ON c.game_id = g.game_id\nWHERE c.user_id = ?\nORDER BY c.created_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT comment_id, content,\ncreated_at, updated_at,\ngame_id, game_title, game_cover\nFROM view_comment_with_author\nWHERE user_id = ?\nORDER BY created_at DESC\nLIMIT ? OFFSET ?
+note right of BDD
+  Vue avec JOIN game automatique
+end note
 BDD --> Model: Liste commentaires avec jeux
 Model --> Controller: Commentaires de l'utilisateur
 

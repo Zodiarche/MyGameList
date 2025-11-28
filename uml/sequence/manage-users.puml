@@ -26,7 +26,7 @@ BDD --> Model: Nombre total
 Model --> Controller: totalResults
 
 Controller -> Model: userModel.getUsers(filter, limit, offset)
-Model -> BDD: SELECT u.user_id, u.username,\nu.email, u.registration_date,\nu.role, u.is_active,\n(SELECT COUNT(*) FROM library WHERE user_id = u.user_id) as game_count,\n(SELECT COUNT(*) FROM comment WHERE user_id = u.user_id) as comment_count\nFROM user_account u\nWHERE (u.is_active = ? OR ? IS NULL)\nORDER BY u.registration_date DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT u.user_id, u.username,\nu.email, u.registration_date,\nu.role, u.is_active,\n(SELECT COUNT(*) FROM library WHERE user_id = u.user_id) as game_count,\n(SELECT COUNT(*) FROM game_comment WHERE user_id = u.user_id AND deleted_at IS NULL) as comment_count\nFROM user_account u\nWHERE (u.is_active = ? OR ? IS NULL)\nORDER BY u.registration_date DESC\nLIMIT ? OFFSET ?
 BDD --> Model: Liste utilisateurs avec stats
 Model --> Controller: Utilisateurs
 
@@ -54,7 +54,7 @@ BDD --> Model: Statistiques bibliotheque
 Model --> Controller: Stats jeux
 
 Controller -> Model: commentModel.countUserComments(user_id)
-Model -> BDD: SELECT COUNT(*) as total\nFROM comment WHERE user_id = ?
+Model -> BDD: SELECT COUNT(*) as total\nFROM game_comment WHERE user_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Nombre commentaires
 Model --> Controller: Stats commentaires
 

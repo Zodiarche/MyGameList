@@ -54,20 +54,72 @@ Write-Host ""
 Write-Host "Execution des tests SQL..." -ForegroundColor Cyan
 Write-Host ""
 
-$testFile = "tests/database/test-all-triggers.sql"
-if (-not (Test-Path $testFile)) {
-    Write-Host "[ERREUR] Fichier de test introuvable: $testFile" -ForegroundColor Red
-    exit 1
+# Compter les tests
+$triggerTests = Get-ChildItem -Path "tests/database/triggers" -Filter "*.sql" -ErrorAction SilentlyContinue
+$viewTests = Get-ChildItem -Path "tests/database/views" -Filter "*.sql" -ErrorAction SilentlyContinue
+$totalTests = ($triggerTests.Count + $viewTests.Count)
+
+Write-Host "[INFO] Tests de triggers trouves: $($triggerTests.Count)" -ForegroundColor Yellow
+Write-Host "[INFO] Tests de vues trouves: $($viewTests.Count)" -ForegroundColor Yellow
+Write-Host "[INFO] Total de fichiers de tests: $totalTests" -ForegroundColor Yellow
+Write-Host ""
+
+$testsPassed = 0
+$testsFailed = 0
+
+# Executer les tests de triggers
+if ($triggerTests.Count -gt 0) {
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "  TESTS DES TRIGGERS" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    foreach ($testFile in $triggerTests) {
+        Write-Host "Execution: $($testFile.Name)" -ForegroundColor Yellow
+        $result = Get-Content $testFile.FullName | docker exec -i mygamelist-postgres-dev psql -U dev_user -d mygamelist 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            $testsPassed++
+            Write-Host "[OK] $($testFile.Name) termine" -ForegroundColor Green
+        } else {
+            $testsFailed++
+            Write-Host "[KO] $($testFile.Name) echoue" -ForegroundColor Red
+        }
+        Write-Host ""
+    }
 }
 
-# Executer via Docker (PostgreSQL)
-Get-Content $testFile | docker exec -i mygamelist-postgres-dev psql -U dev_user -d mygamelist_dev
+# Executer les tests de vues
+if ($viewTests.Count -gt 0) {
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "  TESTS DES VUES" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    foreach ($testFile in $viewTests) {
+        Write-Host "Execution: $($testFile.Name)" -ForegroundColor Yellow
+        $result = Get-Content $testFile.FullName | docker exec -i mygamelist-postgres-dev psql -U dev_user -d mygamelist 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            $testsPassed++
+            Write-Host "[OK] $($testFile.Name) termine" -ForegroundColor Green
+        } else {
+            $testsFailed++
+            Write-Host "[KO] $($testFile.Name) echoue" -ForegroundColor Red
+        }
+        Write-Host ""
+    }
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  TESTS TERMINES" -ForegroundColor Cyan
+Write-Host "  RESUME DES TESTS" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Total: $totalTests fichiers" -ForegroundColor White
+Write-Host "Reussis: $testsPassed" -ForegroundColor Green
+Write-Host "Echoues: $testsFailed" -ForegroundColor $(if ($testsFailed -gt 0) { "Red" } else { "Green" })
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Note: Les resultats sont affiches avec RAISE NOTICE" -ForegroundColor Yellow
-Write-Host "  [OK] PASS = Test reussi" -ForegroundColor Green
-Write-Host "  [KO] FAIL = Test echoue" -ForegroundColor Red
+Write-Host "Note: Les resultats detailles sont affiches avec RAISE NOTICE" -ForegroundColor Yellow
+Write-Host "  [PASS] = Test reussi" -ForegroundColor Green
+Write-Host "  [FAIL] = Test echoue" -ForegroundColor Red

@@ -13,7 +13,7 @@ Membre -> Front: Soumettre identifiants
 Front -> Route: POST /login + identifiants
 Route -> Controller: authController.login(req, res)
 Controller -> Model: userModel.findByEmail(email)
-Model -> BDD: SELECT user_id, username, email,\npassword, role, is_active\nFROM user_account WHERE email = ?
+Model -> BDD: SELECT user_id, username, email,\npassword, role, is_active\nFROM user_account\nWHERE email = ?\n  AND deleted_at IS NULL
 BDD --> Model: Utilisateur + mot de passe hashé
 Model --> Controller: Données utilisateur
 

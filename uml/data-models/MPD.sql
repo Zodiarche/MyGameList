@@ -60,6 +60,7 @@ CREATE INDEX idx_title ON game(title);
 CREATE INDEX idx_slug ON game(slug);
 CREATE INDEX idx_release_date ON game(release_date);
 CREATE INDEX idx_metacritic ON game(metacritic);
+CREATE INDEX idx_game_title_fulltext ON game USING gin(to_tsvector('english', title));
 
 COMMENT ON TABLE game IS 'Table des jeux vidéo';
 
@@ -588,6 +589,7 @@ SELECT
     f.addressee_user_id AS friend_id,
     u.username AS friend_username,
     u.avatar AS friend_avatar,
+    u.bio AS friend_bio,
     f.responded_at AS friendship_date
 FROM friendship f
 INNER JOIN user_account u ON f.addressee_user_id = u.user_id AND u.deleted_at IS NULL
@@ -599,11 +601,84 @@ SELECT
     f.requester_user_id AS friend_id,
     u.username AS friend_username,
     u.avatar AS friend_avatar,
+    u.bio AS friend_bio,
     f.responded_at AS friendship_date
 FROM friendship f
 INNER JOIN user_account u ON f.requester_user_id = u.user_id AND u.deleted_at IS NULL
 INNER JOIN user_account u_addr ON f.addressee_user_id = u_addr.user_id AND u_addr.deleted_at IS NULL
 WHERE f.status = 'accepted';
+
+-- Vue : Commentaires avec auteur et jeu
+CREATE OR REPLACE VIEW view_comment_with_author AS
+SELECT
+    gc.comment_id,
+    gc.game_id,
+    gc.user_id,
+    gc.content,
+    gc.created_at,
+    gc.updated_at,
+    gc.deleted_at,
+    u.username AS author_username,
+    u.avatar AS author_avatar,
+    u.is_active AS author_is_active,
+    g.title AS game_title,
+    g.slug AS game_slug,
+    g.cover_image AS game_cover
+FROM game_comment gc
+INNER JOIN user_account u ON gc.user_id = u.user_id
+INNER JOIN game g ON gc.game_id = g.game_id
+WHERE gc.deleted_at IS NULL
+  AND u.deleted_at IS NULL;
+
+-- Vue : Demandes d'amitié en attente
+CREATE OR REPLACE VIEW view_friendship_pending_requests AS
+SELECT
+    f.friendship_id,
+    f.requester_user_id,
+    f.addressee_user_id,
+    f.requested_at,
+    u_req.username AS requester_username,
+    u_req.avatar AS requester_avatar,
+    u_req.bio AS requester_bio,
+    u_addr.username AS addressee_username
+FROM friendship f
+INNER JOIN user_account u_req ON f.requester_user_id = u_req.user_id AND u_req.deleted_at IS NULL
+INNER JOIN user_account u_addr ON f.addressee_user_id = u_addr.user_id AND u_addr.deleted_at IS NULL
+WHERE f.status = 'pending';
+
+-- Vue : Statistiques de bibliothèque utilisateur
+CREATE OR REPLACE VIEW view_user_library_stats AS
+SELECT
+    l.user_id,
+    COUNT(*) AS total_games,
+    COUNT(*) FILTER (WHERE l.status = 'to_play') AS to_play_count,
+    COUNT(*) FILTER (WHERE l.status = 'playing') AS playing_count,
+    COUNT(*) FILTER (WHERE l.status = 'completed') AS completed_count,
+    COUNT(*) FILTER (WHERE l.status = 'abandoned') AS abandoned_count,
+    COALESCE(SUM(l.play_time), 0) AS total_play_time
+FROM library l
+INNER JOIN user_account u ON l.user_id = u.user_id AND u.deleted_at IS NULL
+GROUP BY l.user_id;
+
+-- Vue : Signalements avec détails
+CREATE OR REPLACE VIEW view_report_with_details AS
+SELECT
+    r.report_id,
+    r.content_type,
+    r.content_id,
+    r.reason,
+    r.description,
+    r.reported_at,
+    r.status,
+    r.processed_at,
+    r.reporter_user_id,
+    u_reporter.username AS reporter_username,
+    u_reporter.email AS reporter_email,
+    r.moderator_user_id,
+    u_mod.username AS moderator_username
+FROM report r
+INNER JOIN user_account u_reporter ON r.reporter_user_id = u_reporter.user_id
+LEFT JOIN user_account u_mod ON r.moderator_user_id = u_mod.user_id;
 
 -- Vue : Bibliothèque enrichie
 CREATE OR REPLACE VIEW view_enriched_library AS
@@ -906,6 +981,24 @@ CREATE TRIGGER trg_game_comment_updated_at
     BEFORE UPDATE ON game_comment
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger : Automatiser responded_at pour les amitiés
+CREATE OR REPLACE FUNCTION trg_auto_set_responded_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.status = 'pending'
+       AND NEW.status IN ('accepted', 'rejected', 'blocked')
+       AND NEW.responded_at IS NULL THEN
+        NEW.responded_at = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_friendship_auto_responded_at
+    BEFORE UPDATE ON friendship
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_auto_set_responded_at();
 
 -- ============================================
 -- COMMENTAIRES FINAUX

@@ -17,45 +17,65 @@ else (oui)
   :Afficher profil;
   
   if (Action ?) then (Modifier profil)
-    :Afficher formulaire;
-    :Soumettre modifications\nPATCH /profile;
-    :Valider donnees;
-    :Verifier username unique\nSELECT WHERE username = ?;
+    :Afficher formulaire\n(username, email, bio, avatar);
+    :Membre modifie et soumet;
+    :Front envoie PATCH /profile + donnees;
+    :Valider donnees\n(username, email, bio, avatar);
+    :Verifier username unique\nSELECT FROM user_account\nWHERE username = ?\nAND user_id != ?\nAND deleted_at IS NULL;
     
     if (Username deja pris ?) then (oui)
-      :Renvoyer 409;
+      :Renvoyer 409 "Pseudo deja utilise";
       :Afficher erreur;
       stop
     else (non)
-      :Verifier email unique;
+      :Verifier email unique\nSELECT FROM user_account\nWHERE email = ?\nAND user_id != ?\nAND deleted_at IS NULL;
       
       if (Email deja pris ?) then (oui)
-        :Renvoyer 409;
+        :Renvoyer 409 "Email deja utilise";
         :Afficher erreur;
         stop
       else (non)
-        :Mettre a jour profil\nUPDATE user_account SET...;
-        :Renvoyer 200 + profil;
+        :Mettre a jour profil\nUPDATE user_account\nSET username = ?, email = ?,\nbio = ?, avatar = ?\nWHERE user_id = ?;
+        :Renvoyer 200 + profil mis a jour;
         :Afficher confirmation;
         stop
       endif
     endif
     
   elseif (Action ?) then (Changer mot de passe)
-    :Afficher formulaire mots de passe;
-    :Soumettre PATCH /profile/password;
-    :Recuperer password actuel;
-    :Verifier ancien mot de passe;
+    :Afficher formulaire mots de passe\n(ancien, nouveau, confirmation);
+    :Membre soumet nouveaux mots de passe;
+    :Front envoie PATCH /profile/password;
+    :Recuperer password actuel\nSELECT password FROM user_account\nWHERE user_id = ?;
+    :Verifier ancien mot de passe\nbcrypt.compare(ancien, hash);
     
-    if (Mot de passe incorrect ?) then (oui)
-      :Renvoyer 401;
+    if (Ancien mot de passe incorrect ?) then (oui)
+      :Renvoyer 401 "Mot de passe incorrect";
       :Afficher erreur;
       stop
     else (non)
-      :Hasher nouveau mot de passe;
-      :UPDATE user_account SET password;
-      :Renvoyer 200;
+      :Hasher nouveau mot de passe\nbcrypt.hash(nouveau);
+      :UPDATE user_account\nSET password = ?\nWHERE user_id = ?;
+      :Renvoyer 200 + confirmation;
       :Afficher succes;
+      stop
+    endif
+    
+  elseif (Action ?) then (Changer avatar)
+    :Afficher formulaire upload;
+    :Membre selectionne fichier;
+    :Front envoie POST /profile/avatar\n+ fichier (multipart/form-data);
+    :Valider fichier\n(type MIME, taille < 2MB);
+    
+    if (Fichier invalide ?) then (oui)
+      :Renvoyer 400 "Fichier invalide";
+      :Afficher erreur;
+      stop
+    else (non)
+      :Sauvegarder fichier\nuploads/avatars/user-{id}.jpg;
+      :UPDATE user_account\nSET avatar = '/uploads/avatars/...'\nWHERE user_id = ?;
+      :Renvoyer 200 + nouveau chemin avatar;
+      :Afficher nouvel avatar;
       stop
     endif
     

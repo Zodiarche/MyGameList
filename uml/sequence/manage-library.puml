@@ -19,7 +19,7 @@ BDD --> Model: Nombre total de jeux
 Model --> Controller: totalResults
 
 Controller -> Model: libraryModel.getUserLibrary(user_id, status, limit, offset)
-Model -> BDD: SELECT l.library_id, l.status, l.added_at,\nl.updated_at, l.play_time,\ng.game_id, g.title, g.cover_image,\np.name as platform_name\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nLEFT JOIN platform p ON l.owned_platform_id = p.platform_id\nWHERE l.user_id = ?\nAND (l.status = ? OR ? IS NULL)\nORDER BY l.updated_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT library_id, game_id, title,\ncover_image, status, added_at,\nplay_time, platform,\nmy_rating, community_average_rating\nFROM view_enriched_library\nWHERE user_id = ?\nAND (status = ? OR ? IS NULL)\nORDER BY added_at DESC\nLIMIT ? OFFSET ?\nnote right of BDD\n  Vue optimisée avec toutes les infos\n  Filtre automatiquement users supprimés\nend note
 BDD --> Model: Liste paginée de jeux avec infos
 Model --> Controller: Bibliothèque de l'utilisateur
 

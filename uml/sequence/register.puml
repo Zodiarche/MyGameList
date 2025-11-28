@@ -20,13 +20,13 @@ Route --> Front: 400 + erreurs de validation
 Front --> Visiteur: Afficher messages d'erreur
 else Données valides
 Controller -> Model: userModel.findByEmail(email)
-Model -> BDD: SELECT * FROM user_account\nWHERE email = ?
-BDD --> Model: Résultat recherche email
+Model -> BDD: SELECT * FROM user_account\nWHERE email = ?\n  AND deleted_at IS NULL
+BDD --> Model: Resultat recherche email
 Model --> Controller: Utilisateur existant ou null
 
 Controller -> Model: userModel.findByUsername(username)
-Model -> BDD: SELECT * FROM user_account\nWHERE username = ?
-BDD --> Model: Résultat recherche username
+Model -> BDD: SELECT * FROM user_account\nWHERE username = ?\n  AND deleted_at IS NULL
+BDD --> Model: Resultat recherche username
 Model --> Controller: Utilisateur existant ou null
 
 alt Email/pseudo déjà pris

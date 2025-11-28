@@ -12,7 +12,11 @@ Front -> Route: GET /users/:user_id/library?page=1&limit=20
 Route -> Controller: libraryController.getUserPublicLibrary(req, res)
 Controller -> Controller: Verifier authentification JWT\nExtraire requester_user_id du token
 Controller -> Model: friendshipModel.areFriends(requester_user_id, target_user_id)
-Model -> BDD: SELECT friendship_id\nFROM friendship\nWHERE ((requester_user_id = ? AND addressee_user_id = ?)\n   OR (requester_user_id = ? AND addressee_user_id = ?))\nAND status = 'accepted'
+Model -> BDD: SELECT 1 FROM view_friends\nWHERE (user_id = ? AND friend_id = ?)\n   OR (user_id = ? AND friend_id = ?)\nLIMIT 1
+note right of BDD
+  view_friends filtre automatiquement
+  les utilisateurs supprimés
+end note
 BDD --> Model: Relation d'amitie ou null
 Model --> Controller: Sont amis ou non
 
@@ -27,12 +31,12 @@ BDD --> Model: Nombre de jeux
 Model --> Controller: totalResults
 
 Controller -> Model: libraryModel.getUserLibrary(target_user_id, limit, offset)
-Model -> BDD: SELECT l.library_id, l.status,\nl.added_at, l.play_time,\ng.game_id, g.title, g.cover_image,\np.name as platform_name\nFROM library l\nJOIN game g ON l.game_id = g.game_id\nLEFT JOIN platform p ON l.owned_platform_id = p.platform_id\nWHERE l.user_id = ?\nORDER BY l.added_at DESC\nLIMIT ? OFFSET ?
+Model -> BDD: SELECT library_id, game_id, title,\ncover_image, status, added_at,\nplay_time, platform,\nmy_rating, community_average_rating\nFROM view_enriched_library\nWHERE user_id = ?\nORDER BY added_at DESC\nLIMIT ? OFFSET ?\nnote right of BDD\n  Vue enrichie avec notes et stats\nend note
 BDD --> Model: Bibliotheque de l'ami
 Model --> Controller: Liste des jeux
 
 Controller -> Model: userModel.getUserById(target_user_id)
-Model -> BDD: SELECT username, avatar\nFROM user_account\nWHERE user_id = ?
+Model -> BDD: SELECT username, avatar\nFROM user_account\nWHERE user_id = ?\n  AND deleted_at IS NULL
 BDD --> Model: Infos utilisateur
 Model --> Controller: Nom et avatar
 
