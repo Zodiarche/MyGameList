@@ -1,148 +1,160 @@
 -- ============================================
 -- MPD - Modèle Physique de Données
 -- MyGameList - Réseau Social de Collection de Jeux Vidéo
--- SGBD : MySQL 8.0+
+-- SGBD : PostgreSQL 16+
 -- ============================================
 
+-- Note: Ce script utilise la syntaxe \c qui nécessite psql
+-- Si exécuté via Docker, la base sera créée automatiquement
+
 -- ============================================
--- Configuration de la base de données
+-- TYPES ENUM PERSONNALISÉS
 -- ============================================
 
-DROP DATABASE IF EXISTS mygamelist;
-CREATE DATABASE mygamelist CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE mygamelist;
+CREATE TYPE user_role AS ENUM ('member', 'administrator');
+CREATE TYPE library_status AS ENUM ('to_play', 'playing', 'completed', 'abandoned');
+CREATE TYPE friendship_status AS ENUM ('pending', 'accepted', 'rejected', 'blocked');
+CREATE TYPE report_content_type AS ENUM ('comment', 'user');
+CREATE TYPE report_status AS ENUM ('pending', 'processed', 'rejected');
 
 -- ============================================
 -- Table: USER_ACCOUNT
 -- ============================================
 
 CREATE TABLE user_account (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL COMMENT 'Bcrypt hash of password',
-    avatar VARCHAR(255) DEFAULT NULL COMMENT 'Avatar URL',
+    password VARCHAR(255) NOT NULL, -- Bcrypt hash of password
+    avatar VARCHAR(255) DEFAULT NULL, -- Avatar URL
     bio TEXT DEFAULT NULL,
-    registration_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    role ENUM('member', 'administrator') NOT NULL DEFAULT 'member',
+    registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    role user_role NOT NULL DEFAULT 'member',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    deleted_at DATETIME DEFAULT NULL COMMENT 'Date de suppression (soft delete)',
+    deleted_at TIMESTAMP DEFAULT NULL -- Date de suppression (soft delete)
+);
 
-    INDEX idx_username (username),
-    INDEX idx_email (email),
-    INDEX idx_role (role),
-    INDEX idx_is_active (is_active),
-    INDEX idx_deleted_at (deleted_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des utilisateurs';
+CREATE INDEX idx_username ON user_account(username);
+CREATE INDEX idx_email ON user_account(email);
+CREATE INDEX idx_role ON user_account(role);
+CREATE INDEX idx_is_active ON user_account(is_active);
+CREATE INDEX idx_deleted_at ON user_account(deleted_at);
+
+COMMENT ON TABLE user_account IS 'Table des utilisateurs';
 
 -- ============================================
 -- Table: GAME
 -- ============================================
 
 CREATE TABLE game (
-    game_id INT AUTO_INCREMENT PRIMARY KEY,
+    game_id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL UNIQUE COMMENT 'URL SEO-friendly',
+    slug VARCHAR(255) NOT NULL UNIQUE, -- URL SEO-friendly
     release_date DATE DEFAULT NULL,
-    metacritic INT DEFAULT NULL COMMENT 'Score Metacritic (0-100)',
-    website VARCHAR(255) DEFAULT NULL COMMENT 'Site web officiel du jeu',
-    cover_image VARCHAR(255) DEFAULT NULL COMMENT 'URL de l''image de couverture',
+    metacritic INTEGER DEFAULT NULL CHECK (metacritic IS NULL OR (metacritic >= 0 AND metacritic <= 100)), -- Score Metacritic (0-100)
+    website VARCHAR(255) DEFAULT NULL, -- Site web officiel du jeu
+    cover_image VARCHAR(255) DEFAULT NULL -- URL de l'image de couverture
+);
 
-    INDEX idx_title (title),
-    INDEX idx_slug (slug),
-    INDEX idx_release_date (release_date),
-    INDEX idx_metacritic (metacritic),
+CREATE INDEX idx_title ON game(title);
+CREATE INDEX idx_slug ON game(slug);
+CREATE INDEX idx_release_date ON game(release_date);
+CREATE INDEX idx_metacritic ON game(metacritic);
 
-    CONSTRAINT chk_metacritic_range
-        CHECK (metacritic IS NULL OR (metacritic >= 0 AND metacritic <= 100))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des jeux vidéo';
+COMMENT ON TABLE game IS 'Table des jeux vidéo';
 
 -- ============================================
 -- Table: PLATFORM
 -- ============================================
 
 CREATE TABLE platform (
-    platform_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    platform_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
 
-    INDEX idx_name_platform (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des plateformes de jeu';
+CREATE INDEX idx_name_platform ON platform(name);
+
+COMMENT ON TABLE platform IS 'Table des plateformes de jeu';
 
 -- ============================================
 -- Table: GENRE
 -- ============================================
 
 CREATE TABLE genre (
-    genre_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
+    genre_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
 
-    INDEX idx_name_genre (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des genres de jeux';
+CREATE INDEX idx_name_genre ON genre(name);
+
+COMMENT ON TABLE genre IS 'Table des genres de jeux';
 
 -- ============================================
 -- Table: TAG
 -- ============================================
 
 CREATE TABLE tag (
-    tag_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
+    tag_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
 
-    INDEX idx_name_tag (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des tags de jeux';
+CREATE INDEX idx_name_tag ON tag(name);
+
+COMMENT ON TABLE tag IS 'Table des tags de jeux';
 
 -- ============================================
 -- Table: DEVELOPER
 -- ============================================
 
 CREATE TABLE developer (
-    developer_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    developer_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
 
-    INDEX idx_name_developer (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des développeurs de jeux';
+CREATE INDEX idx_name_developer ON developer(name);
+
+COMMENT ON TABLE developer IS 'Table des développeurs de jeux';
 
 -- ============================================
 -- Table: STORE
 -- ============================================
 
 CREATE TABLE store (
-    store_id INT AUTO_INCREMENT PRIMARY KEY,
+    store_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    url VARCHAR(255) DEFAULT NULL COMMENT 'URL du magasin',
+    url VARCHAR(255) DEFAULT NULL -- URL du magasin
+);
 
-    INDEX idx_name_store (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des magasins de jeux';
+CREATE INDEX idx_name_store ON store(name);
+
+COMMENT ON TABLE store IS 'Table des magasins de jeux';
 
 -- ============================================
 -- Table: PUBLISHER
 -- ============================================
 
 CREATE TABLE publisher (
-    publisher_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    publisher_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
 
-    INDEX idx_name_publisher (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des éditeurs de jeux';
+CREATE INDEX idx_name_publisher ON publisher(name);
+
+COMMENT ON TABLE publisher IS 'Table des éditeurs de jeux';
 
 -- ============================================
 -- Table: LIBRARY
 -- ============================================
 
 CREATE TABLE library (
-    library_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    game_id INT NOT NULL,
-    status ENUM('to_play', 'playing', 'completed', 'abandoned') NOT NULL DEFAULT 'to_play',
-    added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    play_time INT DEFAULT 0 COMMENT 'Temps de jeu en heures',
-    owned_platform_id INT DEFAULT NULL COMMENT 'Plateforme sur laquelle l''utilisateur possède le jeu',
-
-    INDEX idx_user (user_id),
-    INDEX idx_game (game_id),
-    INDEX idx_status (status),
-    INDEX idx_owned_platform (owned_platform_id),
-    UNIQUE INDEX idx_user_game (user_id, game_id),
+    library_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    game_id INTEGER NOT NULL,
+    status library_status NOT NULL DEFAULT 'to_play',
+    added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT NULL,
+    play_time INTEGER DEFAULT 0 CHECK (play_time >= 0), -- Temps de jeu en heures
+    owned_platform_id INTEGER DEFAULT NULL, -- Plateforme sur laquelle l'utilisateur possède le jeu
 
     CONSTRAINT fk_library_user
         FOREIGN KEY (user_id) REFERENCES user_account(user_id)
@@ -157,25 +169,30 @@ CREATE TABLE library (
     CONSTRAINT fk_library_platform
         FOREIGN KEY (owned_platform_id) REFERENCES platform(platform_id)
         ON DELETE SET NULL
-        ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des bibliothèques personnelles';
+        ON UPDATE CASCADE,
+
+    UNIQUE (user_id, game_id)
+);
+
+CREATE INDEX idx_user ON library(user_id);
+CREATE INDEX idx_game ON library(game_id);
+CREATE INDEX idx_status ON library(status);
+CREATE INDEX idx_owned_platform ON library(owned_platform_id);
+CREATE INDEX idx_library_user_status ON library(user_id, status);
+
+COMMENT ON TABLE library IS 'Table des bibliothèques personnelles';
 
 -- ============================================
 -- Table: RATING
 -- ============================================
 
 CREATE TABLE rating (
-    rating_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    game_id INT NOT NULL,
-    rating DECIMAL(3,1) NOT NULL COMMENT 'Note entre 0.0 et 10.0',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-
-    INDEX idx_user (user_id),
-    INDEX idx_game_rating (game_id),
-    INDEX idx_rating_value (rating),
-    UNIQUE INDEX idx_user_game_rating (user_id, game_id),
+    rating_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    game_id INTEGER NOT NULL,
+    rating NUMERIC(3,1) NOT NULL CHECK (rating >= 0 AND rating <= 10), -- Note entre 0.0 et 10.0
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT NULL,
 
     CONSTRAINT fk_rating_user
         FOREIGN KEY (user_id) REFERENCES user_account(user_id)
@@ -187,28 +204,27 @@ CREATE TABLE rating (
         ON DELETE CASCADE
         ON UPDATE CASCADE,
 
-    CONSTRAINT chk_rating_value
-        CHECK (rating >= 0 AND rating <= 10)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des notes attribuées aux jeux';
+    UNIQUE (user_id, game_id)
+);
+
+CREATE INDEX idx_user_rating ON rating(user_id);
+CREATE INDEX idx_game_rating ON rating(game_id);
+CREATE INDEX idx_rating_value ON rating(rating);
+
+COMMENT ON TABLE rating IS 'Table des notes attribuées aux jeux';
 
 -- ============================================
 -- Table: GAME_COMMENT
 -- ============================================
 
 CREATE TABLE game_comment (
-    comment_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    game_id INT NOT NULL,
+    comment_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    game_id INTEGER NOT NULL,
     content TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME DEFAULT NULL COMMENT 'Date de suppression (soft delete)',
-
-    INDEX idx_user (user_id),
-    INDEX idx_game (game_id),
-    INDEX idx_created_at (created_at DESC),
-    INDEX idx_deleted_at (deleted_at),
-    FULLTEXT idx_fulltext_content (content),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT NULL,
+    deleted_at TIMESTAMP DEFAULT NULL, -- Date de suppression (soft delete)
 
     CONSTRAINT fk_game_comment_user
         FOREIGN KEY (user_id) REFERENCES user_account(user_id)
@@ -219,24 +235,30 @@ CREATE TABLE game_comment (
         FOREIGN KEY (game_id) REFERENCES game(game_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des commentaires sur les jeux';
+);
+
+CREATE INDEX idx_user_comment ON game_comment(user_id);
+CREATE INDEX idx_game_comment ON game_comment(game_id);
+CREATE INDEX idx_created_at ON game_comment(created_at DESC);
+CREATE INDEX idx_deleted_at_comment ON game_comment(deleted_at);
+CREATE INDEX idx_game_comment_game_date ON game_comment(game_id, created_at DESC);
+
+-- Index full-text search
+CREATE INDEX idx_fulltext_content ON game_comment USING gin(to_tsvector('french', content));
+
+COMMENT ON TABLE game_comment IS 'Table des commentaires sur les jeux';
 
 -- ============================================
 -- Table: FRIENDSHIP
 -- ============================================
 
 CREATE TABLE friendship (
-    friendship_id INT AUTO_INCREMENT PRIMARY KEY,
-    requester_user_id INT NOT NULL,
-    addressee_user_id INT NOT NULL,
-    status ENUM('pending', 'accepted', 'rejected', 'blocked') NOT NULL DEFAULT 'pending',
-    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    responded_at DATETIME DEFAULT NULL,
-
-    INDEX idx_requester (requester_user_id),
-    INDEX idx_addressee (addressee_user_id),
-    INDEX idx_status (status),
-    UNIQUE INDEX idx_friendship_unique (requester_user_id, addressee_user_id),
+    friendship_id SERIAL PRIMARY KEY,
+    requester_user_id INTEGER NOT NULL,
+    addressee_user_id INTEGER NOT NULL,
+    status friendship_status NOT NULL DEFAULT 'pending',
+    requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP DEFAULT NULL,
 
     CONSTRAINT fk_friendship_requester
         FOREIGN KEY (requester_user_id) REFERENCES user_account(user_id)
@@ -248,31 +270,104 @@ CREATE TABLE friendship (
         ON DELETE CASCADE
         ON UPDATE CASCADE,
 
-    CONSTRAINT chk_friendship_different_users
-        CHECK (requester_user_id != addressee_user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des relations d''amitié';
+    UNIQUE (requester_user_id, addressee_user_id)
+);
+
+CREATE INDEX idx_requester ON friendship(requester_user_id);
+CREATE INDEX idx_addressee ON friendship(addressee_user_id);
+CREATE INDEX idx_status_friendship ON friendship(status);
+CREATE INDEX idx_friendship_requester_status ON friendship(requester_user_id, status);
+CREATE INDEX idx_friendship_addressee_status ON friendship(addressee_user_id, status);
+
+COMMENT ON TABLE friendship IS 'Table des relations d''amitié';
+
+-- ============================================
+-- TRIGGERS : Validation auto-amitié
+-- ============================================
+
+CREATE OR REPLACE FUNCTION trg_friendship_no_self()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.requester_user_id = NEW.addressee_user_id THEN
+        RAISE EXCEPTION 'Cannot add yourself as friend';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_friendship_no_self_insert
+    BEFORE INSERT ON friendship
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_friendship_no_self();
+
+CREATE TRIGGER trg_friendship_no_self_update
+    BEFORE UPDATE ON friendship
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_friendship_no_self();
+
+-- ============================================
+-- TRIGGERS : Validation notes (rating)
+-- ============================================
+
+CREATE OR REPLACE FUNCTION trg_rating_validate()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.rating < 0 OR NEW.rating > 10 THEN
+        RAISE EXCEPTION 'Rating must be between 0 and 10';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rating_validate_insert
+    BEFORE INSERT ON rating
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_rating_validate();
+
+CREATE TRIGGER trg_rating_validate_update
+    BEFORE UPDATE ON rating
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_rating_validate();
+
+-- ============================================
+-- TRIGGERS : Validation score Metacritic
+-- ============================================
+
+CREATE OR REPLACE FUNCTION trg_game_metacritic_validate()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.metacritic IS NOT NULL AND (NEW.metacritic < 0 OR NEW.metacritic > 100) THEN
+        RAISE EXCEPTION 'Metacritic score must be between 0 and 100';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_game_metacritic_insert
+    BEFORE INSERT ON game
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_game_metacritic_validate();
+
+CREATE TRIGGER trg_game_metacritic_update
+    BEFORE UPDATE ON game
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_game_metacritic_validate();
 
 -- ============================================
 -- Table: REPORT
 -- ============================================
 
 CREATE TABLE report (
-    report_id INT AUTO_INCREMENT PRIMARY KEY,
-    reporter_user_id INT NOT NULL,
-    content_type ENUM('comment', 'user') NOT NULL,
-    content_id INT NOT NULL COMMENT 'ID du commentaire ou de l''utilisateur signalé',
+    report_id SERIAL PRIMARY KEY,
+    reporter_user_id INTEGER NOT NULL,
+    content_type report_content_type NOT NULL,
+    content_id INTEGER NOT NULL, -- ID du commentaire ou de l'utilisateur signalé
     reason VARCHAR(255) NOT NULL,
     description TEXT DEFAULT NULL,
-    reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('pending', 'processed', 'rejected') NOT NULL DEFAULT 'pending',
-    processed_at DATETIME DEFAULT NULL,
-    moderator_user_id INT DEFAULT NULL COMMENT 'Administrateur ayant traité le signalement',
-
-    INDEX idx_reporter (reporter_user_id),
-    INDEX idx_moderator (moderator_user_id),
-    INDEX idx_content_type (content_type, content_id),
-    INDEX idx_status_report (status),
-    INDEX idx_reported_at (reported_at DESC),
+    reported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status report_status NOT NULL DEFAULT 'pending',
+    processed_at TIMESTAMP DEFAULT NULL,
+    moderator_user_id INTEGER DEFAULT NULL, -- Administrateur ayant traité le signalement
 
     CONSTRAINT fk_report_reporter
         FOREIGN KEY (reporter_user_id) REFERENCES user_account(user_id)
@@ -283,20 +378,26 @@ CREATE TABLE report (
         FOREIGN KEY (moderator_user_id) REFERENCES user_account(user_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table des signalements de contenu';
+);
+
+CREATE INDEX idx_reporter ON report(reporter_user_id);
+CREATE INDEX idx_moderator ON report(moderator_user_id);
+CREATE INDEX idx_content_type ON report(content_type, content_id);
+CREATE INDEX idx_status_report ON report(status);
+CREATE INDEX idx_reported_at ON report(reported_at DESC);
+
+COMMENT ON TABLE report IS 'Table des signalements de contenu';
 
 -- ============================================
 -- Table: GAME_PLATFORM (Association)
 -- ============================================
 
 CREATE TABLE game_platform (
-    game_id INT NOT NULL,
-    platform_id INT NOT NULL,
-    platform_release_date DATE DEFAULT NULL COMMENT 'Date de sortie spécifique à cette plateforme',
+    game_id INTEGER NOT NULL,
+    platform_id INTEGER NOT NULL,
+    platform_release_date DATE DEFAULT NULL, -- Date de sortie spécifique à cette plateforme
 
     PRIMARY KEY (game_id, platform_id),
-    INDEX idx_game (game_id),
-    INDEX idx_platform (platform_id),
 
     CONSTRAINT fk_game_platform_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -307,19 +408,22 @@ CREATE TABLE game_platform (
         FOREIGN KEY (platform_id) REFERENCES platform(platform_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Plateformes';
+);
+
+CREATE INDEX idx_game_platform ON game_platform(game_id);
+CREATE INDEX idx_platform_game ON game_platform(platform_id);
+
+COMMENT ON TABLE game_platform IS 'Association Jeux-Plateformes';
 
 -- ============================================
 -- Table: GAME_GENRE (Association)
 -- ============================================
 
 CREATE TABLE game_genre (
-    game_id INT NOT NULL,
-    genre_id INT NOT NULL,
+    game_id INTEGER NOT NULL,
+    genre_id INTEGER NOT NULL,
 
     PRIMARY KEY (game_id, genre_id),
-    INDEX idx_game (game_id),
-    INDEX idx_genre (genre_id),
 
     CONSTRAINT fk_game_genre_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -330,19 +434,22 @@ CREATE TABLE game_genre (
         FOREIGN KEY (genre_id) REFERENCES genre(genre_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Genres';
+);
+
+CREATE INDEX idx_game_genre ON game_genre(game_id);
+CREATE INDEX idx_genre_game ON game_genre(genre_id);
+
+COMMENT ON TABLE game_genre IS 'Association Jeux-Genres';
 
 -- ============================================
 -- Table: GAME_TAG (Association)
 -- ============================================
 
 CREATE TABLE game_tag (
-    game_id INT NOT NULL,
-    tag_id INT NOT NULL,
+    game_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
 
     PRIMARY KEY (game_id, tag_id),
-    INDEX idx_game (game_id),
-    INDEX idx_tag (tag_id),
 
     CONSTRAINT fk_game_tag_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -353,19 +460,22 @@ CREATE TABLE game_tag (
         FOREIGN KEY (tag_id) REFERENCES tag(tag_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Tags';
+);
+
+CREATE INDEX idx_game_tag ON game_tag(game_id);
+CREATE INDEX idx_tag_game ON game_tag(tag_id);
+
+COMMENT ON TABLE game_tag IS 'Association Jeux-Tags';
 
 -- ============================================
 -- Table: GAME_DEVELOPER (Association)
 -- ============================================
 
 CREATE TABLE game_developer (
-    game_id INT NOT NULL,
-    developer_id INT NOT NULL,
+    game_id INTEGER NOT NULL,
+    developer_id INTEGER NOT NULL,
 
     PRIMARY KEY (game_id, developer_id),
-    INDEX idx_game (game_id),
-    INDEX idx_developer (developer_id),
 
     CONSTRAINT fk_game_developer_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -376,19 +486,22 @@ CREATE TABLE game_developer (
         FOREIGN KEY (developer_id) REFERENCES developer(developer_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Développeurs';
+);
+
+CREATE INDEX idx_game_developer ON game_developer(game_id);
+CREATE INDEX idx_developer_game ON game_developer(developer_id);
+
+COMMENT ON TABLE game_developer IS 'Association Jeux-Développeurs';
 
 -- ============================================
 -- Table: GAME_STORE (Association)
 -- ============================================
 
 CREATE TABLE game_store (
-    game_id INT NOT NULL,
-    store_id INT NOT NULL,
+    game_id INTEGER NOT NULL,
+    store_id INTEGER NOT NULL,
 
     PRIMARY KEY (game_id, store_id),
-    INDEX idx_game (game_id),
-    INDEX idx_store (store_id),
 
     CONSTRAINT fk_game_store_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -399,19 +512,22 @@ CREATE TABLE game_store (
         FOREIGN KEY (store_id) REFERENCES store(store_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Magasins';
+);
+
+CREATE INDEX idx_game_store ON game_store(game_id);
+CREATE INDEX idx_store_game ON game_store(store_id);
+
+COMMENT ON TABLE game_store IS 'Association Jeux-Magasins';
 
 -- ============================================
 -- Table: GAME_PUBLISHER (Association)
 -- ============================================
 
 CREATE TABLE game_publisher (
-    game_id INT NOT NULL,
-    publisher_id INT NOT NULL,
+    game_id INTEGER NOT NULL,
+    publisher_id INTEGER NOT NULL,
 
     PRIMARY KEY (game_id, publisher_id),
-    INDEX idx_game (game_id),
-    INDEX idx_publisher (publisher_id),
 
     CONSTRAINT fk_game_publisher_game
         FOREIGN KEY (game_id) REFERENCES game(game_id)
@@ -422,7 +538,12 @@ CREATE TABLE game_publisher (
         FOREIGN KEY (publisher_id) REFERENCES publisher(publisher_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Association Jeux-Éditeurs';
+);
+
+CREATE INDEX idx_game_publisher ON game_publisher(game_id);
+CREATE INDEX idx_publisher_game ON game_publisher(publisher_id);
+
+COMMENT ON TABLE game_publisher IS 'Association Jeux-Éditeurs';
 
 -- ============================================
 -- VUES UTILES
@@ -434,7 +555,7 @@ SELECT
     g.game_id,
     g.title,
     COUNT(DISTINCT CASE WHEN u_r.deleted_at IS NULL THEN r.user_id END) AS rating_count,
-    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END), 1) AS average_rating,
+    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END)::numeric, 1) AS average_rating,
     COUNT(DISTINCT CASE WHEN gc.deleted_at IS NULL THEN gc.comment_id END) AS comment_count,
     COUNT(DISTINCT CASE WHEN u_l.deleted_at IS NULL THEN l.user_id END) AS owner_count
 FROM game g
@@ -451,7 +572,7 @@ SELECT
     g.game_id,
     g.title,
     g.cover_image,
-    ROUND(AVG(r.rating), 1) AS average_rating,
+    ROUND(AVG(r.rating)::numeric, 1) AS average_rating,
     COUNT(r.rating_id) AS rating_count
 FROM game g
 INNER JOIN rating r ON g.game_id = r.game_id
@@ -497,7 +618,7 @@ SELECT
     l.play_time,
     p.name AS platform,
     r.rating AS my_rating,
-    ROUND(AVG(CASE WHEN u_r2.deleted_at IS NULL THEN r2.rating END), 1) AS community_average_rating
+    ROUND(AVG(CASE WHEN u_r2.deleted_at IS NULL THEN r2.rating END)::numeric, 1) AS community_average_rating
 FROM library l
 INNER JOIN user_account u ON l.user_id = u.user_id AND u.deleted_at IS NULL
 INNER JOIN game g ON l.game_id = g.game_id
@@ -509,8 +630,6 @@ GROUP BY l.library_id, l.user_id, l.game_id, g.title, g.cover_image,
          l.status, l.added_at, l.play_time, p.name, r.rating;
 
 -- Vue : Détails complets d'un jeu (optimisation N+1)
--- Cette vue regroupe toutes les informations d'un jeu en une seule requête
--- pour éviter les 6-8 requêtes séquentielles lors de la consultation d'une fiche jeu
 CREATE OR REPLACE VIEW view_game_complete_details AS
 SELECT
     g.game_id,
@@ -521,135 +640,110 @@ SELECT
     g.website,
     -- Plateformes (agrégées en JSON)
     COALESCE(
-        JSON_ARRAYAGG(
-            DISTINCT CASE
-                WHEN p.platform_id IS NOT NULL
-                THEN JSON_OBJECT('platform_id', p.platform_id, 'name', p.name)
-                ELSE NULL
-            END
-        ),
-        JSON_ARRAY()
+        json_agg(
+            DISTINCT jsonb_build_object('platform_id', p.platform_id, 'name', p.name)
+        ) FILTER (WHERE p.platform_id IS NOT NULL),
+        '[]'::json
     ) AS platforms,
     -- Genres (agrégés en JSON)
     COALESCE(
-        JSON_ARRAYAGG(
-            DISTINCT CASE
-                WHEN gen.genre_id IS NOT NULL
-                THEN JSON_OBJECT('genre_id', gen.genre_id, 'name', gen.name)
-                ELSE NULL
-            END
-        ),
-        JSON_ARRAY()
+        json_agg(
+            DISTINCT jsonb_build_object('genre_id', gen.genre_id, 'name', gen.name)
+        ) FILTER (WHERE gen.genre_id IS NOT NULL),
+        '[]'::json
     ) AS genres,
     -- Tags (agrégés en JSON)
     COALESCE(
-        JSON_ARRAYAGG(
-            DISTINCT CASE
-                WHEN t.tag_id IS NOT NULL
-                THEN JSON_OBJECT('tag_id', t.tag_id, 'name', t.name)
-                ELSE NULL
-            END
-        ),
-        JSON_ARRAY()
+        json_agg(
+            DISTINCT jsonb_build_object('tag_id', t.tag_id, 'name', t.name)
+        ) FILTER (WHERE t.tag_id IS NOT NULL),
+        '[]'::json
     ) AS tags,
     -- Développeurs (agrégés en JSON)
     COALESCE(
-        JSON_ARRAYAGG(
-            DISTINCT CASE
-                WHEN d.developer_id IS NOT NULL
-                THEN JSON_OBJECT('developer_id', d.developer_id, 'name', d.name)
-                ELSE NULL
-            END
-        ),
-        JSON_ARRAY()
+        json_agg(
+            DISTINCT jsonb_build_object('developer_id', d.developer_id, 'name', d.name)
+        ) FILTER (WHERE d.developer_id IS NOT NULL),
+        '[]'::json
     ) AS developers,
     -- Éditeurs (agrégés en JSON)
     COALESCE(
-        JSON_ARRAYAGG(
-            DISTINCT CASE
-                WHEN pub.publisher_id IS NOT NULL
-                THEN JSON_OBJECT('publisher_id', pub.publisher_id, 'name', pub.name)
-                ELSE NULL
-            END
-        ),
-        JSON_ARRAY()
+        json_agg(
+            DISTINCT jsonb_build_object('publisher_id', pub.publisher_id, 'name', pub.name)
+        ) FILTER (WHERE pub.publisher_id IS NOT NULL),
+        '[]'::json
     ) AS publishers,
     -- Statistiques de notation
-    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END), 1) AS average_rating,
+    ROUND(AVG(CASE WHEN u_r.deleted_at IS NULL THEN r.rating END)::numeric, 1) AS average_rating,
     COUNT(DISTINCT CASE WHEN u_r.deleted_at IS NULL THEN r.rating_id END) AS rating_count,
     -- Nombre de commentaires
     COUNT(DISTINCT CASE WHEN gc.deleted_at IS NULL THEN gc.comment_id END) AS comment_count
 FROM game g
--- Plateformes
 LEFT JOIN game_platform gp ON g.game_id = gp.game_id
 LEFT JOIN platform p ON gp.platform_id = p.platform_id
--- Genres
 LEFT JOIN game_genre gg ON g.game_id = gg.game_id
 LEFT JOIN genre gen ON gg.genre_id = gen.genre_id
--- Tags
 LEFT JOIN game_tag gt ON g.game_id = gt.game_id
 LEFT JOIN tag t ON gt.tag_id = t.tag_id
--- Développeurs
 LEFT JOIN game_developer gd ON g.game_id = gd.game_id
 LEFT JOIN developer d ON gd.developer_id = d.developer_id
--- Éditeurs
 LEFT JOIN game_publisher gpr ON g.game_id = gpr.game_id
 LEFT JOIN publisher pub ON gpr.publisher_id = pub.publisher_id
--- Ratings
 LEFT JOIN rating r ON g.game_id = r.game_id
 LEFT JOIN user_account u_r ON r.user_id = u_r.user_id
--- Commentaires
 LEFT JOIN game_comment gc ON g.game_id = gc.game_id
 GROUP BY g.game_id, g.title, g.cover_image, g.release_date, g.metacritic, g.website;
 
 -- ============================================
--- PROCÉDURES STOCKÉES
+-- FONCTIONS STOCKÉES
 -- ============================================
 
--- Procédure : Ajouter un jeu à la bibliothèque
-DELIMITER //
-CREATE PROCEDURE sp_add_game_to_library(
-    IN p_user_id INT,
-    IN p_game_id INT,
-    IN p_status VARCHAR(20),
-    IN p_platform_id INT
+-- Fonction : Ajouter un jeu à la bibliothèque
+CREATE OR REPLACE FUNCTION sp_add_game_to_library(
+    p_user_id INTEGER,
+    p_game_id INTEGER,
+    p_status library_status,
+    p_platform_id INTEGER
 )
+RETURNS VOID AS $$
 BEGIN
     INSERT INTO library (user_id, game_id, status, owned_platform_id)
     VALUES (p_user_id, p_game_id, p_status, p_platform_id)
-    ON DUPLICATE KEY UPDATE
-        status = p_status,
-        owned_platform_id = p_platform_id,
+    ON CONFLICT (user_id, game_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        owned_platform_id = EXCLUDED.owned_platform_id,
         updated_at = CURRENT_TIMESTAMP;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
--- Procédure : Noter un jeu
-DELIMITER //
-CREATE PROCEDURE sp_rate_game(
-    IN p_user_id INT,
-    IN p_game_id INT,
-    IN p_rating DECIMAL(3,1)
+-- Fonction : Noter un jeu
+CREATE OR REPLACE FUNCTION sp_rate_game(
+    p_user_id INTEGER,
+    p_game_id INTEGER,
+    p_rating NUMERIC(3,1)
 )
+RETURNS VOID AS $$
 BEGIN
     IF p_rating < 0 OR p_rating > 10 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La note doit être comprise entre 0 et 10';
+        RAISE EXCEPTION 'La note doit être comprise entre 0 et 10';
     END IF;
 
     INSERT INTO rating (user_id, game_id, rating)
     VALUES (p_user_id, p_game_id, p_rating)
-    ON DUPLICATE KEY UPDATE
-        rating = p_rating,
+    ON CONFLICT (user_id, game_id) DO UPDATE SET
+        rating = EXCLUDED.rating,
         updated_at = CURRENT_TIMESTAMP;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
--- Procédure : Accepter une demande d'amitié
-DELIMITER //
-CREATE PROCEDURE sp_accept_friendship_request(
-    IN p_friendship_id INT,
-    IN p_addressee_user_id INT
+-- Fonction : Accepter une demande d'amitié
+CREATE OR REPLACE FUNCTION sp_accept_friendship_request(
+    p_friendship_id INTEGER,
+    p_addressee_user_id INTEGER
 )
+RETURNS VOID AS $$
+DECLARE
+    v_rows_updated INTEGER;
 BEGIN
     UPDATE friendship
     SET status = 'accepted',
@@ -658,17 +752,21 @@ BEGIN
       AND addressee_user_id = p_addressee_user_id
       AND status = 'pending';
 
-    IF ROW_COUNT() = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Demande d''amitié introuvable ou déjà traitée';
-    END IF;
-END //
-DELIMITER ;
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
 
--- Procédure : Soft delete d'un utilisateur
-DELIMITER //
-CREATE PROCEDURE sp_soft_delete_user(
-    IN p_user_id INT
+    IF v_rows_updated = 0 THEN
+        RAISE EXCEPTION 'Demande d''amitié introuvable ou déjà traitée';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction : Soft delete d'un utilisateur
+CREATE OR REPLACE FUNCTION sp_soft_delete_user(
+    p_user_id INTEGER
 )
+RETURNS VOID AS $$
+DECLARE
+    v_rows_updated INTEGER;
 BEGIN
     UPDATE user_account
     SET deleted_at = CURRENT_TIMESTAMP,
@@ -676,21 +774,24 @@ BEGIN
     WHERE user_id = p_user_id
       AND deleted_at IS NULL;
 
-    IF ROW_COUNT() = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Utilisateur introuvable ou déjà supprimé';
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+
+    IF v_rows_updated = 0 THEN
+        RAISE EXCEPTION 'Utilisateur introuvable ou déjà supprimé';
     END IF;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
--- Procédure : Soft delete d'un commentaire
-DELIMITER //
-CREATE PROCEDURE sp_soft_delete_comment(
-    IN p_comment_id INT,
-    IN p_user_id INT
+-- Fonction : Soft delete d'un commentaire
+CREATE OR REPLACE FUNCTION sp_soft_delete_comment(
+    p_comment_id INTEGER,
+    p_user_id INTEGER
 )
+RETURNS VOID AS $$
+DECLARE
+    v_role user_role;
+    v_rows_updated INTEGER;
 BEGIN
-    DECLARE v_role VARCHAR(20);
-
     -- Vérifier le rôle de l'utilisateur
     SELECT role INTO v_role
     FROM user_account
@@ -703,17 +804,21 @@ BEGIN
       AND (user_id = p_user_id OR v_role = 'administrator')
       AND deleted_at IS NULL;
 
-    IF ROW_COUNT() = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Commentaire introuvable, déjà supprimé ou non autorisé';
-    END IF;
-END //
-DELIMITER ;
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
 
--- Procédure : Restaurer un utilisateur supprimé
-DELIMITER //
-CREATE PROCEDURE sp_restore_user(
-    IN p_user_id INT
+    IF v_rows_updated = 0 THEN
+        RAISE EXCEPTION 'Commentaire introuvable, déjà supprimé ou non autorisé';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction : Restaurer un utilisateur supprimé
+CREATE OR REPLACE FUNCTION sp_restore_user(
+    p_user_id INTEGER
 )
+RETURNS VOID AS $$
+DECLARE
+    v_rows_updated INTEGER;
 BEGIN
     UPDATE user_account
     SET deleted_at = NULL,
@@ -721,87 +826,96 @@ BEGIN
     WHERE user_id = p_user_id
       AND deleted_at IS NOT NULL;
 
-    IF ROW_COUNT() = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Utilisateur introuvable ou non supprimé';
-    END IF;
-END //
-DELIMITER ;
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
 
--- Procédure : Restaurer un commentaire supprimé
-DELIMITER //
-CREATE PROCEDURE sp_restore_comment(
-    IN p_comment_id INT
+    IF v_rows_updated = 0 THEN
+        RAISE EXCEPTION 'Utilisateur introuvable ou non supprimé';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction : Restaurer un commentaire supprimé
+CREATE OR REPLACE FUNCTION sp_restore_comment(
+    p_comment_id INTEGER
 )
+RETURNS VOID AS $$
+DECLARE
+    v_rows_updated INTEGER;
 BEGIN
     UPDATE game_comment
     SET deleted_at = NULL
     WHERE comment_id = p_comment_id
       AND deleted_at IS NOT NULL;
 
-    IF ROW_COUNT() = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Commentaire introuvable ou non supprimé';
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+
+    IF v_rows_updated = 0 THEN
+        RAISE EXCEPTION 'Commentaire introuvable ou non supprimé';
     END IF;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================
--- TRIGGERS
+-- TRIGGERS SUPPLÉMENTAIRES
 -- ============================================
 
 -- Trigger : Vérifier le rôle du modérateur
-DELIMITER //
-CREATE TRIGGER trg_verify_moderator_report
-BEFORE UPDATE ON report
-FOR EACH ROW
+CREATE OR REPLACE FUNCTION trg_verify_moderator_report()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_role user_role;
 BEGIN
-    DECLARE v_role VARCHAR(20);
-
     IF NEW.moderator_user_id IS NOT NULL THEN
         SELECT role INTO v_role
         FROM user_account
         WHERE user_id = NEW.moderator_user_id;
 
         IF v_role != 'administrator' THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Seul un administrateur peut modérer un signalement';
+            RAISE EXCEPTION 'Seul un administrateur peut modérer un signalement';
         END IF;
     END IF;
-END //
-DELIMITER ;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- Trigger : Mettre à jour la date de modification de la bibliothèque
-DELIMITER //
-CREATE TRIGGER trg_library_updated_at
-BEFORE UPDATE ON library
-FOR EACH ROW
+CREATE TRIGGER trg_verify_moderator_report
+    BEFORE UPDATE ON report
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_verify_moderator_report();
+
+-- Trigger : Mettre à jour automatiquement updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-    SET NEW.updated_at = CURRENT_TIMESTAMP;
-END //
-DELIMITER ;
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- ============================================
--- INDEX ADDITIONNELS POUR OPTIMISATION
--- ============================================
+CREATE TRIGGER trg_library_updated_at
+    BEFORE UPDATE ON library
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
--- Index composite pour les requêtes de bibliothèque par statut
-CREATE INDEX idx_library_user_status ON library(user_id, status);
+CREATE TRIGGER trg_rating_updated_at
+    BEFORE UPDATE ON rating
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
--- Index pour les commentaires récents par jeu
-CREATE INDEX idx_game_comment_game_date ON game_comment(game_id, created_at DESC);
-
--- Index pour les demandes d'amitié par statut
-CREATE INDEX idx_friendship_requester_status ON friendship(requester_user_id, status);
-CREATE INDEX idx_friendship_addressee_status ON friendship(addressee_user_id, status);
+CREATE TRIGGER trg_game_comment_updated_at
+    BEFORE UPDATE ON game_comment
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- COMMENTAIRES FINAUX
 -- ============================================
 
 /*
-Ce script crée la structure complète de la base de données MyGameList.
+MyGameList - Base de données PostgreSQL 16+
 
 Fonctionnalités implémentées :
-- Gestion des utilisateurs avec rôles (membre, administrateur)
+- Gestion des utilisateurs avec rôles (member, administrator)
 - Catalogue de jeux avec plateformes, genres et tags
 - Bibliothèques personnelles avec statuts de progression
 - Système de notation et de commentaires
@@ -811,9 +925,9 @@ Fonctionnalités implémentées :
 Optimisations :
 - Index sur les colonnes fréquemment recherchées
 - Index composites pour les requêtes complexes
-- Index FULLTEXT pour la recherche textuelle
-- Vues matérialisées pour les statistiques
-- Procédures stockées pour les opérations métier
+- Index GIN pour la recherche full-text
+- Vues pour les statistiques et agrégations
+- Fonctions stockées pour les opérations métier
 - Triggers pour garantir l'intégrité des données
 
 Sécurité :
@@ -821,7 +935,8 @@ Sécurité :
 - Contraintes de domaine (CHECK)
 - Validation des données via triggers
 - Cascades appropriées pour les suppressions
+- Soft delete pour utilisateurs et commentaires
 
-Version : 1.0
+Version : 2.0 (PostgreSQL)
 Date : 2025-11-27
 */

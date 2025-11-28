@@ -7,14 +7,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./uml/data-models/MPD.sql:/docker-entrypoint-initdb.d/01-schema.sql
     environment:
-      - POSTGRES_DB=mygamelist_dev
+      - POSTGRES_DB=mygamelist
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev_user -d mygamelist_dev"]
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d mygamelist"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -101,8 +101,27 @@ services:
     depends_on:
       - backend
 
+  # pgAdmin - Interface graphique PostgreSQL
+  pgadmin:
+    container_name: mygamelist-pgadmin-dev
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@mygamelist.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   backend_node_modules_cache:
   frontend_node_modules_cache:
   postgres_data:
   redis_data:
+  pgadmin_data:
