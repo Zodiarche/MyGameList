@@ -10,16 +10,16 @@
 
 ```sql
 USER_ACCOUNT (
-    user_id INT [PK],
+    user_id SERIAL [PK],
     username VARCHAR(50) [UNIQUE, NOT NULL],
     email VARCHAR(255) [UNIQUE, NOT NULL],
     password VARCHAR(255) [NOT NULL],
     avatar VARCHAR(255),
     bio TEXT,
-    registration_date DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    role ENUM('member', 'administrator') [NOT NULL, DEFAULT 'member'],
+    registration_date TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    role user_role [NOT NULL, DEFAULT 'member'],
     is_active BOOLEAN [NOT NULL, DEFAULT TRUE],
-    deleted_at DATETIME [DEFAULT NULL]
+    deleted_at TIMESTAMP [DEFAULT NULL]
 )
 ```
 
@@ -37,11 +37,11 @@ USER_ACCOUNT (
 
 ```sql
 GAME (
-    game_id INT [PK],
+    game_id SERIAL [PK],
     title VARCHAR(255) [NOT NULL],
     slug VARCHAR(255) [UNIQUE, NOT NULL],
     release_date DATE,
-    metacritic INT [CHECK (metacritic >= 0 AND metacritic <= 100)],
+    metacritic INTEGER [CHECK (metacritic IS NULL OR (metacritic >= 0 AND metacritic <= 100))],
     website VARCHAR(255),
     cover_image VARCHAR(255)
 )
@@ -60,7 +60,7 @@ GAME (
 
 ```sql
 PLATFORM (
-    platform_id INT [PK],
+    platform_id SERIAL [PK],
     name VARCHAR(100) [UNIQUE, NOT NULL]
 )
 ```
@@ -76,7 +76,7 @@ PLATFORM (
 
 ```sql
 GENRE (
-    genre_id INT [PK],
+    genre_id SERIAL [PK],
     name VARCHAR(50) [UNIQUE, NOT NULL]
 )
 ```
@@ -92,7 +92,7 @@ GENRE (
 
 ```sql
 TAG (
-    tag_id INT [PK],
+    tag_id SERIAL [PK],
     name VARCHAR(50) [UNIQUE, NOT NULL]
 )
 ```
@@ -108,7 +108,7 @@ TAG (
 
 ```sql
 DEVELOPER (
-    developer_id INT [PK],
+    developer_id SERIAL [PK],
     name VARCHAR(100) [UNIQUE, NOT NULL]
 )
 ```
@@ -124,9 +124,9 @@ DEVELOPER (
 
 ```sql
 STORE (
-    store_id INT [PK],
+    store_id SERIAL [PK],
     name VARCHAR(100) [UNIQUE, NOT NULL],
-    url VARCHAR(255) [COMMENT 'URL du magasin']
+    url VARCHAR(255)
 )
 ```
 
@@ -141,7 +141,7 @@ STORE (
 
 ```sql
 PUBLISHER (
-    publisher_id INT [PK],
+    publisher_id SERIAL [PK],
     name VARCHAR(100) [UNIQUE, NOT NULL]
 )
 ```
@@ -157,14 +157,14 @@ PUBLISHER (
 
 ```sql
 LIBRARY (
-    library_id INT [PK],
-    user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    status ENUM('to_play', 'playing', 'completed', 'abandoned') [NOT NULL, DEFAULT 'to_play'],
-    added_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    updated_at DATETIME,
-    play_time INT [DEFAULT 0],
-    owned_platform_id INT [FK -> PLATFORM.platform_id]
+    library_id SERIAL [PK],
+    user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    status library_status [NOT NULL, DEFAULT 'to_play'],
+    added_at TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    updated_at TIMESTAMP,
+    play_time INTEGER [DEFAULT 0, CHECK (play_time >= 0)],
+    owned_platform_id INTEGER [FK -> PLATFORM.platform_id]
 )
 ```
 
@@ -187,12 +187,12 @@ LIBRARY (
 
 ```sql
 RATING (
-    rating_id INT [PK],
-    user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    rating DECIMAL(3,1) [NOT NULL, CHECK (rating >= 0 AND rating <= 10)],
-    created_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    updated_at DATETIME
+    rating_id SERIAL [PK],
+    user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    rating NUMERIC(3,1) [NOT NULL, CHECK (rating >= 0 AND rating <= 10)],
+    created_at TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    updated_at TIMESTAMP
 )
 ```
 
@@ -215,13 +215,13 @@ RATING (
 
 ```sql
 GAME_COMMENT (
-    comment_id INT [PK],
-    user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    game_id INT [FK -> GAME.game_id, NOT NULL],
+    comment_id SERIAL [PK],
+    user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
     content TEXT [NOT NULL],
-    created_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    updated_at DATETIME,
-    deleted_at DATETIME [DEFAULT NULL]
+    created_at TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    updated_at TIMESTAMP,
+    deleted_at TIMESTAMP [DEFAULT NULL]
 )
 ```
 
@@ -245,12 +245,12 @@ GAME_COMMENT (
 
 ```sql
 FRIENDSHIP (
-    friendship_id INT [PK],
-    requester_user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    addressee_user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    status ENUM('pending', 'accepted', 'rejected', 'blocked') [NOT NULL, DEFAULT 'pending'],
-    requested_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    responded_at DATETIME
+    friendship_id SERIAL [PK],
+    requester_user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    addressee_user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    status friendship_status [NOT NULL, DEFAULT 'pending'],
+    requested_at TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    responded_at TIMESTAMP
 )
 ```
 
@@ -274,16 +274,16 @@ FRIENDSHIP (
 
 ```sql
 REPORT (
-    report_id INT [PK],
-    reporter_user_id INT [FK -> USER_ACCOUNT.user_id, NOT NULL],
-    content_type ENUM('comment', 'user') [NOT NULL],
-    content_id INT [NOT NULL],
+    report_id SERIAL [PK],
+    reporter_user_id INTEGER [FK -> USER_ACCOUNT.user_id, NOT NULL],
+    content_type report_content_type [NOT NULL],
+    content_id INTEGER [NOT NULL],
     reason VARCHAR(255) [NOT NULL],
     description TEXT,
-    reported_at DATETIME [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
-    status ENUM('pending', 'processed', 'rejected') [NOT NULL, DEFAULT 'pending'],
-    processed_at DATETIME,
-    moderator_user_id INT [FK -> USER_ACCOUNT.user_id]
+    reported_at TIMESTAMP [NOT NULL, DEFAULT CURRENT_TIMESTAMP],
+    status report_status [NOT NULL, DEFAULT 'pending'],
+    processed_at TIMESTAMP,
+    moderator_user_id INTEGER [FK -> USER_ACCOUNT.user_id]
 )
 ```
 
@@ -328,8 +328,8 @@ GAME_PLATFORM (
 
 ```sql
 GAME_GENRE (
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    genre_id INT [FK -> GENRE.genre_id, NOT NULL]
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    genre_id INTEGER [FK -> GENRE.genre_id, NOT NULL]
 )
 ```
 
@@ -349,8 +349,8 @@ GAME_GENRE (
 
 ```sql
 GAME_TAG (
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    tag_id INT [FK -> TAG.tag_id, NOT NULL]
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    tag_id INTEGER [FK -> TAG.tag_id, NOT NULL]
 )
 ```
 
@@ -370,8 +370,8 @@ GAME_TAG (
 
 ```sql
 GAME_DEVELOPER (
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    developer_id INT [FK -> DEVELOPER.developer_id, NOT NULL]
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    developer_id INTEGER [FK -> DEVELOPER.developer_id, NOT NULL]
 )
 ```
 
@@ -391,8 +391,8 @@ GAME_DEVELOPER (
 
 ```sql
 GAME_STORE (
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    store_id INT [FK -> STORE.store_id, NOT NULL]
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    store_id INTEGER [FK -> STORE.store_id, NOT NULL]
 )
 ```
 
@@ -412,8 +412,8 @@ GAME_STORE (
 
 ```sql
 GAME_PUBLISHER (
-    game_id INT [FK -> GAME.game_id, NOT NULL],
-    publisher_id INT [FK -> PUBLISHER.publisher_id, NOT NULL]
+    game_id INTEGER [FK -> GAME.game_id, NOT NULL],
+    publisher_id INTEGER [FK -> PUBLISHER.publisher_id, NOT NULL]
 )
 ```
 

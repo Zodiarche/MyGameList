@@ -53,6 +53,7 @@
 
 - **store_id** (PK)
 - name
+- url
 
 ### 8. publisher
 
@@ -129,7 +130,8 @@
 
 #### GAME ↔ PLATFORM
 
-- **AVAILABLE_ON** : Un jeu peut être disponible sur plusieurs plateformes, une plateforme peut héberger plusieurs jeux (N:M)
+- **AVAILABLE_ON** (via GAME_PLATFORM) : Un jeu peut être disponible sur plusieurs plateformes, une plateforme peut héberger plusieurs jeux (N:M)
+  - Attribut de l'association : `platform_release_date` (date de sortie spécifique à la plateforme)
 
 #### GAME ↔ DEVELOPERS
 
@@ -238,7 +240,7 @@ GAME_DEVELOPER
 
 ## Diagramme Conceptuel
 
-```
+```text
 ┌──────────────┐          ┌──────────────┐              ┌──────────┐
 │ USER_ACCOUNT │──┐    ┌──│   LIBRARY    │──────────────│   GAME   │
 └──────────────┘  │    │  └──────────────┘              └──────────┘
@@ -284,3 +286,43 @@ GAME_DEVELOPER
        │    STORE    │─────────│  GAME_STORE  │─────────────┘
        └─────────────┘         └──────────────┘
 ```
+
+---
+
+## Fonctions Stockées
+
+### Gestion de la bibliothèque et des notes
+
+- `sp_add_game_to_library(p_user_id, p_game_id, p_status, p_platform_id)` : Ajouter un jeu à la bibliothèque
+- `sp_rate_game(p_user_id, p_game_id, p_rating)` : Noter un jeu
+
+### Gestion des amitiés
+
+- `sp_accept_friendship_request(p_friendship_id, p_addressee_user_id)` : Accepter une demande d'amitié
+
+### Gestion des suppressions logiques
+
+- `sp_soft_delete_user(p_user_id)` : Suppression logique d'un utilisateur
+- `sp_soft_delete_comment(p_comment_id, p_user_id)` : Suppression logique d'un commentaire (propriétaire ou administrateur)
+- `sp_restore_user(p_user_id)` : Restauration d'un utilisateur supprimé
+- `sp_restore_comment(p_comment_id)` : Restauration d'un commentaire supprimé
+
+---
+
+## Triggers
+
+### Validation des données
+
+- `trg_friendship_no_self` : Empêche un utilisateur de s'ajouter lui-même en ami
+- `trg_rating_validate` : Valide que les notes sont comprises entre 0 et 10
+- `trg_game_metacritic_validate` : Valide que le score Metacritic est compris entre 0 et 100
+
+### Vérification des rôles
+
+- `trg_verify_moderator_report` : Vérifie que seul un administrateur peut modérer un signalement
+
+### Mise à jour automatique
+
+- `trg_library_updated_at` : Met à jour automatiquement `updated_at` dans `library`
+- `trg_rating_updated_at` : Met à jour automatiquement `updated_at` dans `rating`
+- `trg_game_comment_updated_at` : Met à jour automatiquement `updated_at` dans `game_comment`
